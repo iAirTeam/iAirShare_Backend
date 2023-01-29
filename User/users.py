@@ -13,4 +13,4 @@ class AsUser:
         self.nick = nick
         self.creation_date = datetime.date.fromtimestamp(now())
         self.score = initscore
-        self.roles: Role[]
+        self.roles: list[Role] = []
