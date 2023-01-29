@@ -40,9 +40,9 @@ def gen_json_response_kw(_status=HTTPStatus.OK, **kwargs) -> Response:
                     mimetype='application/json', status=_status)
 
 
-def gen_json_response(dictionary: dict, status=HTTPStatus.OK) -> Response:
+def gen_json_response(dictionary: dict, _status=HTTPStatus.OK) -> Response:
     return Response(gen_response_str(**dictionary),
-                    mimetype='application/json', status=status)
+                    mimetype='application/json', status=_status)
 
 
 def get_file_full_path(filename) -> Optional[str]:
@@ -51,9 +51,11 @@ def get_file_full_path(filename) -> Optional[str]:
 
 
 def safe_filename(filename: str):
-    for sep in os.path.sep, os.path.altsep:
+    seps = os.path.sep + os.path.altsep + '/\\$\'\"'
+    for sep in seps:
         if sep:
             filename = filename.replace(sep, "_")
+    filename.replace('..', '_')
 
     # on nt a couple of special files are present in each folder.  We
     # have to ensure that the target file is not such a filename.  In

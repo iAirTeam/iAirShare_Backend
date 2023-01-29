@@ -24,7 +24,7 @@
                   <text class="position-absolute top-50 start-50 translate-middle" color="white">文件上传 : ({{ upload_dir }})</text>
               </div>
             <div class="card-body">
-                <form action="/api/upload_file" method="POST" enctype="multipart/form-data">
+                <form action="/api/file" method="POST" enctype="multipart/form-data">
                     <div class="card-text">
                         <p>将文件上传至 {{ upload_dir }}</p>
                         <input class="form-control form-control-sm" type="file" multiple="multiple" name="file"/>
