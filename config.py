@@ -1,4 +1,9 @@
-import json
+from datetime import timedelta
 
-with open("config.json", "r+", encoding="u8") as f:
-    config = json.load(f)
+HOST = "0.0.0.0"
+PORT = 10000
+DEBUG = True
+SECRET_KEY = "AS830648803044"
+PERMANENT_SESSION_LIFETIME = timedelta(days=14)
+FILE_PATH = "./files"
+FFPROBE = "ffprobe"

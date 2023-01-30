@@ -6,6 +6,7 @@ from .roles import Role
 
 users: set["AsUser"] = set()
 
+
 class AsUser:
     def __init__(self, name: str,
                  initscore: int = 100,
@@ -19,7 +20,7 @@ class AsUser:
         self.roles: list[Role] = []
 
     def __hash__(self):
-        return f"{self.name}__{self.creation_date}{114514}"
+        return f"{self.name}__{self.creation_date}#{self.id}"
 
     def __repr__(self):
         return f"{self.name}#{self.id}"
