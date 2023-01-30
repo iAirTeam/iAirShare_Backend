@@ -85,8 +85,7 @@ class File:
 
     def get_filelist(self, path: str, ffprobe='ffprobe.exe', use_format: bool = False):
         response = {
-            "count": 0,
-            "fileinfo": []
+            "filelist": []
         }
 
         for file in os.listdir(path):
@@ -94,7 +93,7 @@ class File:
             if os.path.isfile(filename):
                 try:
                     fileinfo = self.get_fileinfo(filename, ffprobe)
-                    response["fileinfo"].append(fileinfo)
+                    response["filelist"].append(fileinfo)
                     response["count"] += 1
                 except Exception as e:
                     print(filename, e)

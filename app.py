@@ -21,17 +21,25 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=14)
 
 @app.route('/')
 def index():
-    return Response(json.dumps({
+    return gen_json_response({
         "name": "AirShare",
         "status": str(service_available).split('.')[1].lower(),
         "versionCode": '1.2',
         "version": 1_2_0000,
-    }, ensure_ascii=False, indent=4), mimetype='application/json')
+    })
+
+
+@app.route('/robots.txt')
+def robots():
+    return redirect(url_for('static', filename='robots.txt'))
 
 
 @app.route('/api/signin/v1')
 def signin_v1():
-    session['user']
+    session['user'] = "user1"
+    return gen_json_response({
+        "desc": "session settle"
+    })
 
 
 @app.route('/api/filelist', methods=['GET', 'POST'])
