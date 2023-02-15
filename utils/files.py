@@ -4,10 +4,14 @@ import pathlib
 from typing import Optional, TypedDict, Self, Type, Literal, Union
 from abc import abstractmethod, ABC
 from io import BytesIO
+import atexit
+
+from werkzeug.datastructures import FileStorage
 
 from .vars import *
 from .queries import *
 from .exceptions import *
+from .encrypt import custom_hash, hash_file
 
 RepoId = str | int
 FileId = int
@@ -73,6 +77,10 @@ class FileAPIBase(ABC):
     def get_repo_files(self, repo) -> set:
         pass
 
+    @abstractmethod
+    def repo_upload(self, file: FileStorage) -> bytes:
+        pass
+
 
 class FileAPIDrive(FileAPIBase, ABC):
     def __init__(self, file_suffix=None):
@@ -83,8 +91,8 @@ class FileAPIDrive(FileAPIBase, ABC):
 
         if not file_dir.exists():
             file_dir.mkdir(parents=True)
-        if not file_dir.is_dir():
-            file_dir.unlink()
+        if not (base_dir.is_dir() and file_dir.is_dir()):
+            base_dir.unlink()
             file_dir.mkdir(parents=True)
 
         self.base_dir: pathlib.Path = pathlib.Path(base_dir)
@@ -110,12 +118,28 @@ class FileAPIDrive(FileAPIBase, ABC):
 
         self.config_dir: pathlib.Path = pathlib.Path(config_dir)
 
+        atexit.register(self._save_storage)
+
+    def _save_storage(self):
+        with open(self.config_dir, 'w', encoding='UTF-8') as f:
+            json.dump(self.structure, f, ensure_ascii=False)
+
     def _queries(self, file_id):
-        file_path = pathlib.Path(self.base_dir) / file_id
+        file_path = pathlib.Path(self.file_dir) / file_id
         if not file_path.exists():
             return None
         with open(file_path, 'rb') as f:
             return f.read()
+
+    def repo_upload(self, file: FileStorage) -> bytes:
+        io = BytesIO()
+        file.save(io)
+        file_hash = hash_file(io.getvalue())
+        self.structure.update({file.filename: file_hash})
+        io.seek(0)
+        with open(self.file_dir / file_hash, 'w') as f:
+            f.write(io.read())
+        return file_hash
 
 
 class FileAPIDriveByName(FileAPIDrive, ABC):
@@ -128,7 +152,7 @@ class FileAPIDriveByName(FileAPIDrive, ABC):
             "count": 0
         }
 
-        for file in self.base_dir.iterdir():
+        for file in self.file_dir.iterdir():
             if file.is_file():
                 fileinfo = self._filetype(file)
                 data["files"].append({
@@ -146,7 +170,7 @@ class FileAPIDriveByName(FileAPIDrive, ABC):
         super(FileAPIDriveByName, self)._queries(self._file_fullpath(file_id))
 
     def _file_fullpath(self, filename: str | pathlib.Path) -> Optional[str | pathlib.Path]:
-        path = self.base_dir.absolute() / filename  # flag
+        path = self.file_dir.absolute() / filename  # flag
         return path if path.exists() else None
 
     @staticmethod

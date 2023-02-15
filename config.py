@@ -5,5 +5,3 @@ PORT = 10000
 DEBUG = True
 SECRET_KEY = "AS830648803044"
 PERMANENT_SESSION_LIFETIME = timedelta(days=14)
-FILE_PATH = "./files"
-FFPROBE = "ffprobe"

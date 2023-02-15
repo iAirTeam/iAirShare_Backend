@@ -30,7 +30,6 @@ def files_operation(repo='public'):
                 try:
                     return gen_json_response_kw(data=public_repo.get_repo_files())
                 except Exception as e:
-                    raise
                     return gen_json_response_kw(_status=HTTPStatus.INTERNAL_SERVER_ERROR, status=400, msg=str(e))
             else:
                 full_filename = get_file_full_path(filename)
@@ -47,7 +46,8 @@ def files_operation(repo='public'):
             for file in files:
                 if file:
                     try:
-                        file.save(public_repo.base_dir / public_repo._safe_filename(file.filename))
+                        public_repo.repo_upload(file)
+                        # file.save(public_repo.file_dir / public_repo._safe_filename(file.filename))
                     except Exception as e:
                         return gen_json_response_kw(_status=HTTPStatus.INTERNAL_SERVER_ERROR, status=500,
                                                     msg="upload_exception: {}".format(e), data=str(e))
