@@ -134,11 +134,11 @@ class FileAPIDrive(FileAPIBase, ABC):
     def repo_upload(self, file: FileStorage) -> bytes:
         io = BytesIO()
         file.save(io)
-        file_hash = hash_file(io.getvalue())
+        byte_file = io.getvalue()
+        file_hash = hash_file(byte_file)
         self.structure.update({file.filename: file_hash})
-        io.seek(0)
-        with open(self.file_dir / file_hash, 'w') as f:
-            f.write(io.read())
+        with open(self.file_dir / file_hash, 'wb') as f:
+            f.write(byte_file)
         return file_hash
 
 
