@@ -1,3 +1,7 @@
+from logging import getLogger as _getLogger
+
+logger = _getLogger("iAirShare")
+
 image_ext = [
     '.png', '.jpg', '.jpeg', '.apng', '.avif', '.bmp', '.gif', '.ico', '.cur', '.jfif',
     '.pjpeg', '.pjp', '.svg', '.tif', '.tiff', '.webp'

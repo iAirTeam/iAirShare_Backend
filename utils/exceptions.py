@@ -1,0 +1,2 @@
+class NoSuchRepoError(Exception):
+    pass

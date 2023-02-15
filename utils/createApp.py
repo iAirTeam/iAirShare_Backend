@@ -3,7 +3,7 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from os.path import abspath
 
-from blueprints import api_bp
+from blueprints import api_bp, root_bp
 import config
 
 
@@ -13,8 +13,9 @@ def create_app():
     app.config.from_object(config)
 
     CORS(app, methods=['GET', 'PUT', 'DEL', 'POST'], supports_credentials=True)
-    SQLAlchemy(app)
+    # SQLAlchemy(app)
 
     app.register_blueprint(api_bp)
+    app.register_blueprint(root_bp)
 
     return app
