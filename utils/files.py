@@ -241,6 +241,9 @@ class FileAPIPublic(FileAPIDrive):
         cls.public_instance = super().__new__(cls, *args, **kwargs)
         return cls.public_instance
 
+    def __init__(self):
+        super().__init__('public')
+
 
 class FileAPIPrivateV1(FileAPIDrive, ABC):
 
