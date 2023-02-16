@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import random
 from typing import Optional, TypedDict, Self, Type, Literal, Union
 from abc import abstractmethod, ABC
 from io import BytesIO
@@ -14,8 +15,10 @@ from .exceptions import *
 from .encrypt import custom_hash, hash_file
 
 RepoId = str | int
-FileId = int
+FileId = str | None
 RepoFileId = int
+
+iter_storage = {}
 
 
 class File:
@@ -70,19 +73,24 @@ class FileAPIBase(ABC):
         pass
 
     @abstractmethod
-    def quires_repo(self, repo_file: RepoFile) -> Union[BytesIO, "IO", "BinaryIO"]:
+    def quires_repo(self, path: str) -> Union[BytesIO, "IO", "BinaryIO"]:
         pass
 
     @abstractmethod
-    def get_repo_files(self, repo) -> set:
+    def list_dir(self, path: str) -> iter:
         pass
 
     @abstractmethod
-    def repo_upload(self, file: FileStorage) -> bytes:
+    def repo_upload(self, path: str, file: FileStorage) -> bytes:
+        pass
+
+    @abstractmethod
+    def next_dir(self, path: str, d_next: int = None):
         pass
 
 
-class FileAPIDrive(FileAPIBase, ABC):
+class FileAPIDrive(FileAPIBase):
+
     def __init__(self, file_suffix=None):
         super().__init__()
 
@@ -112,7 +120,7 @@ class FileAPIDrive(FileAPIBase, ABC):
         else:
             with open(config_dir, 'r+', encoding='UTF-8') as f:
                 try:
-                    self.structure = json.load(f)
+                    self.structure: dict = json.load(f)
                 except ValueError:
                     f.write('{}')
 
@@ -129,82 +137,101 @@ class FileAPIDrive(FileAPIBase, ABC):
         if not file_path.exists():
             return None
         with open(file_path, 'rb') as f:
-            return f.read()
+            return BytesIO(f.read())
 
-    def repo_upload(self, file: FileStorage) -> bytes:
+    @classmethod
+    def set_by_path(cls, d, path, val):
+        if len(path) == 1:
+            old_val = None
+            if path[0] in d:
+                old_val = d[path[0]]
+            d[path[0]] = val
+            return old_val
+        else:
+            key = path.pop(0)
+            if key not in d:
+                d[key] = {}
+            return cls.set_by_path(d[key], path, val)
+
+    def repo_upload(self, path: str, file: FileStorage) -> tuple[str, tuple]:
         io = BytesIO()
         file.save(io)
         byte_file = io.getvalue()
+
         file_hash = hash_file(byte_file)
-        self.structure.update({file.filename: file_hash})
+
         with open(self.file_dir / file_hash, 'wb') as f:
             f.write(byte_file)
-        return file_hash
 
+        keys = path.lstrip('/').split('/')
 
-class FileAPIDriveByName(FileAPIDrive, ABC):
-    def __init__(self, file_suffix='public'):
-        super().__init__(file_suffix=file_suffix)
+        if keys[0]:
+            self.set_by_path(self.structure, keys + [file.filename], file_hash)
+        else:
+            self.structure.update({file.filename: file_hash})
 
-    def _get_all(self):
-        data = {
-            "files": [],
-            "count": 0
-        }
+        return file_hash, keys
 
-        for file in self.file_dir.iterdir():
-            if file.is_file():
-                fileinfo = self._filetype(file)
-                data["files"].append({
-                    "file_name": file.name,
-                    "ext_type": fileinfo,
-                })
-                data["count"] += 1
+    def list_dir(self, path: str) -> list[str] | None:
+        keys = path.lstrip('/').split('/')
+
+        directory_data = self.structure
+        if keys:
+            self.structure.get(keys)
+
+        if not isinstance(query_data, dict):
+            return None
+
+        result = []
+        for key, data in directory_data:
+            if isinstance(data, str):
+                result.append(key)
+            elif isinstance(data, dict):
+                result.append('[directory]')
             else:
+                result.append('[undefined]')
+
+        return result
+
+    def next_dir(self, path: Optional[str], d_next: int = None):
+        if not d_next:
+            dir_iter = self.list_dir(path)
+            iter_id = hash(dir_iter) << (2 << 10) + hash(path) << (2 << 40) + random.randint(10, 8000)
+            iter_storage.update({iter_id: (iter(dir_iter), len(dir_iter))})
+            return next(iter_storage[iter_id]), len(dir_iter), iter_id
+        else:
+            dir_iter = None
+            try:
+                dir_iter = iter_storage.pop(d_next)
+            except KeyError:
                 pass
 
-        return data
+            if not dir_iter:
+                return None, -114514
 
-    # noinspection PyProtectedMember
-    def _queries(self, file_id: str):
-        super(FileAPIDriveByName, self)._queries(self._file_fullpath(file_id))
+            try:
+                value = next(dir_iter[0])
+                iter_id = hash(dir_iter) << (2 << 10) + hash(path) << (2 << 40) + hash(value)
+                iter_storage.update({iter_id: (dir_iter[0], dir_iter[1])})
+                return value, dir_iter[1], iter_id
+            except StopIteration:
+                return None, 0
 
-    def _file_fullpath(self, filename: str | pathlib.Path) -> Optional[str | pathlib.Path]:
-        path = self.file_dir.absolute() / filename  # flag
-        return path if path.exists() else None
+    def quires_repo(self, path) -> FileId:
+        keys = path.split('/')
+        try:
+            file_id = self.structure.get(*keys)
+            if not isinstance(file_id, str):
+                return None
+            return file_id
+        except KeyError:
+            return None
 
-    @staticmethod
-    def _safe_filename(filename: str):
-        seps = os.path.sep + os.path.altsep + '/\\$\'\"'
-        for sep in seps:
-            if sep:
-                filename = filename.replace(sep, "_")
-        filename.replace('..', '_')
-
-        # on nt a couple of special files are present in each folder.  We
-        # have to ensure that the target file is not such a filename.  In
-        # this case we prepend an underline
-        nt_badname = ("CON", "AUX", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3", "PRN", "NUL")
-        if (os.name == "nt"
-                and filename
-                and filename.split(".")[0].upper() in nt_badname):
-            filename = f"_{filename}"
-
-        return filename
-
-    @staticmethod
-    def _filetype(file: pathlib.Path):
-
-        ext = file.suffix.lower()
-        if ext in image_ext:
-            return 'image'
-        elif ext in video_ext:
-            return 'video'
-        else:
-            return 'other'
+    def delete(self, path) -> FileId:
+        return self.set_by_path(self.structure, path, None)
 
 
-class FileAPIPublic(FileAPIDriveByName):
+class FileAPIPublic(FileAPIDrive):
     public_instance: "FileAPIPublic" = None
 
     def __new__(cls, *args, **kwargs):
@@ -213,20 +240,6 @@ class FileAPIPublic(FileAPIDriveByName):
 
         cls.public_instance = super().__new__(cls, *args, **kwargs)
         return cls.public_instance
-
-    def quires_repo(self, repo_file_id: str):
-        file = super()._file_fullpath(repo_file_id)
-        if not file:
-            return None
-
-        return open(file, 'rb')
-
-    # noinspection PyProtectedMember
-    def get_repo_files(self, repo=None):
-        if not repo:
-            return super()._get_all()
-        else:
-            raise NoSuchRepoError("Undefined Behavior in Public Repo")
 
 
 class FileAPIPrivateV1(FileAPIDrive, ABC):
