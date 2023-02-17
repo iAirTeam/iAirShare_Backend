@@ -12,9 +12,31 @@ public_repo = FileAPIPublic()
 @bp.route('/filelist', methods=['GET', 'POST'])
 def get_file_list():
     try:
-        return gen_json_response_kw(data=get_filelist(file_path, config.FFPROBE))
+        return kw_gen(data=get_filelist(file_path, config.FFPROBE))
     except Exception as e:
-        return gen_json_response_kw(_status=HTTPStatus.INTERNAL_SERVER_ERROR, status=400, msg=str(e))
+        return kw_gen(_status=HTTPStatus.INTERNAL_SERVER_ERROR, status=400, msg=str(e))
+
+
+def file_iter(count, path, d_next):
+    if count > 20:
+        count = 20
+    first, total, d_next = public_repo.next_repo_dir(path, d_next=d_next)
+    result = {"total": total, 'next': 0, 'list': [first]}
+
+    for _ in range(count):
+        if d_next == 0:
+            break
+
+        val, total, d_next = public_repo.next_repo_dir(None, d_next=d_next)
+
+        if val is None:
+            break
+        result['total'] = total
+        result['list'].append(val)
+
+    result['next'] = d_next
+
+    return result
 
 
 # noinspection PyProtectedMember
@@ -28,15 +50,14 @@ def files_operation(repo='public'):
             filename = request.values.get('filename', None)
             count = request.values.get('count', 0)
             d_next = request.values.get('next', 0)
-            if not filename:
-                if count > 20:
-                    count = 20
-                first, total, d_next = public_repo.next_dir('/', d_next=d_next)
-                result = {"total": total, 'next': 0, 'list': [first]}
+            try:
+                count = int(count)
+                d_next = int(d_next)
+            except ValueError:
+                return kw_gen(code=400, msg='bad argument')
 
-                for _ in range(count):
-                    val, total, d_next = public_repo.next_dir(None, d_next=d_next)
-                    result['list'].append(val)
+            if not filename:
+                result = file_iter(count, '/', d_next)
 
                 return kw_gen(code=200, data=result)
             else:
@@ -51,7 +72,7 @@ def files_operation(repo='public'):
             result = []
 
             for file in files:
-                file_hash, path = public_repo.repo_upload("/", file)
+                file_hash, path = public_repo.upload_repo_file("/", file)
                 result.append(path)
 
             return kw_gen(_status=HTTPStatus.CREATED, data=result)
@@ -60,7 +81,8 @@ def files_operation(repo='public'):
 # noinspection PyProtectedMember
 @bp.route('/file/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
 def file_operation(repo='public', _=None):
-    storage_path = request.url.lstrip(request.url_root).lstrip(f'file/{repo}')
+    storage_path = request.full_path.lstrip(f'file/{repo}') \
+        .rstrip('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
 
     if not storage_path:
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg="Invalid Storage Path")
@@ -70,7 +92,25 @@ def file_operation(repo='public', _=None):
 
     match request.method:
         case 'GET':
-            return send_file(public_repo._queries(public_repo.quires_repo(storage_path)),
+            count = request.values.get('count', 0)
+            d_next = request.values.get('next', 0)
+            try:
+                count = int(count)
+                d_next = int(d_next)
+            except ValueError:
+                return kw_gen(code=400, msg='bad argument')
+
+            file_id = public_repo.quires_repo_file(storage_path)
+
+            if not file_id:
+                return kw_gen(code=404, msg='file not found')
+
+            if file_id == '[Directory]':
+                result = file_iter(count, storage_path, d_next)
+
+                return kw_gen(code=200, data=result)
+
+            return send_file(public_repo._queries(file_id),
                              mimetype='file')
         case 'PUT' | 'POST':
             files = request.files.getlist('file')
@@ -80,14 +120,14 @@ def file_operation(repo='public', _=None):
             result = []
 
             for file in files:
-                file_hash, path = public_repo.repo_upload(storage_path, file)
+                file_hash, path = public_repo.upload_repo_file(storage_path, file)
                 result.append(path)
 
             return kw_gen(_status=HTTPStatus.CREATED, data=result)
         case 'DELETE':
             if not storage_path.lstrip('/'):
                 return kw_gen(_status=HTTPStatus.GONE,
-                              data=hash(public_repo.delete(storage_path)))
+                              data=hash(public_repo.unlink_repo_file(storage_path)))
             else:
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST,
                               code=400)
