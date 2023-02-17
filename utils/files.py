@@ -153,6 +153,14 @@ class FileAPIDrive(FileAPIBase):
                 d[key] = {}
             return cls.set_by_path(d[key], path, val)
 
+    @classmethod
+    def get_by_path(cls, d, path):
+        if len(path) == 1:
+            return d[path[0]]
+        else:
+            key = path.pop(0)
+            return cls.get_by_path(d[key], path)
+
     def repo_upload(self, path: str, file: FileStorage) -> tuple[str, tuple]:
         io = BytesIO()
         file.save(io)
@@ -220,7 +228,7 @@ class FileAPIDrive(FileAPIBase):
     def quires_repo(self, path) -> FileId:
         keys = path.split('/')
         try:
-            file_id = self.structure.get(*keys)
+            file_id = self.get_by_path(self.structure, keys)
             if not isinstance(file_id, str):
                 return None
             return file_id

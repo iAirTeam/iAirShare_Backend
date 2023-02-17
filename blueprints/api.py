@@ -58,8 +58,10 @@ def files_operation(repo='public'):
 
 
 # noinspection PyProtectedMember
-@bp.route('/file/<repo>/<path:storage_path>', methods=['GET', 'PUT', 'DELETE'])
-def file_operation(repo='public', storage_path='/'):
+@bp.route('/file/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
+def file_operation(repo='public', _=None):
+    storage_path = request.url.lstrip(request.url_root).lstrip(f'file/{repo}')
+
     if not storage_path:
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg="Invalid Storage Path")
 
