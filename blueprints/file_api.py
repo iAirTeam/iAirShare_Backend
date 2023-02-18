@@ -5,16 +5,8 @@ from utils import gen_json_response_kw as kw_gen, gen_json_response as dict_gen,
 from utils.files import FileAPIPublic
 from http import HTTPStatus
 
-bp = Blueprint("api", __name__)
+bp = Blueprint("file", __name__, url_prefix='/api/file')
 public_repo = FileAPIPublic()
-
-
-@bp.route('/filelist', methods=['GET', 'POST'])
-def get_file_list():
-    try:
-        return kw_gen(data=get_filelist(file_path, config.FFPROBE))
-    except Exception as e:
-        return kw_gen(_status=HTTPStatus.INTERNAL_SERVER_ERROR, status=400, msg=str(e))
 
 
 def file_iter(count, path, d_next):
@@ -39,8 +31,22 @@ def file_iter(count, path, d_next):
     return result
 
 
+@bp.route('/list_root', methods=['GET', 'POST'])
+def get_file_list():
+    count = request.values.get('count', 0)
+    d_next = request.values.get('next', 0)
+    try:
+        count = int(count)
+        d_next = int(d_next)
+    except ValueError:
+        return kw_gen(code=400, msg='bad argument')
+    result = file_iter(count, '/', d_next)
+
+    return kw_gen(code=200, data=result)
+
+
 # noinspection PyProtectedMember
-@bp.route('/file/<repo>', methods=['GET', 'PUT', 'POST'])
+@bp.route('/<repo>', methods=['GET', 'PUT', 'POST'])
 def files_operation(repo='public'):
     if repo != 'public':
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=404, msg='repo_not_exist')
@@ -79,7 +85,7 @@ def files_operation(repo='public'):
 
 
 # noinspection PyProtectedMember
-@bp.route('/file/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
+@bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
 def file_operation(repo='public', _=None):
     storage_path = request.full_path.lstrip(f'file/{repo}') \
         .rstrip('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
@@ -131,10 +137,3 @@ def file_operation(repo='public', _=None):
             else:
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST,
                               code=400)
-
-
-@bp.route('/setu')
-@bp.route('/loli')
-def _loli():
-    return dict_gen(_status=HTTPStatus.IM_A_TEAPOT,
-                    dictionary={'desc': 'WTH !?', 'more_desc': "What did you think about?"})
