@@ -1,5 +1,4 @@
 import json
-import os
 import pathlib
 import random
 from typing import Optional, TypedDict, Self, Type, Literal, Union, Tuple, List, Dict
@@ -125,18 +124,18 @@ class FileAPIDrive(FileAPIBase):
         }
 
         if not config_dir.exists():
-            with config_dir.open('w') as f:
-                json.dump(self.config, f)
+            with config_dir.open('w') as file:
+                json.dump(self.config, file)
         elif not config_dir.is_file():
             config_dir.unlink(missing_ok=True)
-            with config_dir.open('w') as f:
-                json.dump(self.config, f)
+            with config_dir.open('w') as file:
+                json.dump(self.config, file)
         else:
-            with open(config_dir, 'r+', encoding='UTF-8') as f:
+            with open(config_dir, 'r+', encoding='UTF-8') as file:
                 try:
-                    self.config: RepoConfigStructure = json.load(f)
+                    self.config: RepoConfigStructure = json.load(file)
                 except ValueError:
-                    json.dump(self.config, f)
+                    json.dump(self.config, file)
 
         self.mapping = self.config['mapping']
 
@@ -145,8 +144,8 @@ class FileAPIDrive(FileAPIBase):
         atexit.register(self._save_storage)
 
     def _save_storage(self):
-        with open(self.config_dir, 'w', encoding='UTF-8') as f:
-            json.dump(self.config, f, ensure_ascii=False)
+        with open(self.config_dir, 'w', encoding='UTF-8') as file:
+            json.dump(self.config, file, ensure_ascii=False)
 
     @classmethod
     def _set_by_path(cls, d, path, val):
@@ -176,8 +175,8 @@ class FileAPIDrive(FileAPIBase):
         file_path = pathlib.Path(self.file_dir) / file_id
         if not file_path.exists():
             return None
-        with open(file_path, 'rb') as f:
-            return BytesIO(f.read())
+        with open(file_path, 'rb') as file:
+            return BytesIO(file.read())
 
     def upload_repo_file(self, path: str, file: FileStorage) -> tuple[str, list[str]]:
         io = BytesIO()
@@ -187,8 +186,8 @@ class FileAPIDrive(FileAPIBase):
         file_hash = hash_file(byte_file)
 
         if not (self.file_dir / file_hash).exists():
-            with open(self.file_dir / file_hash, 'wb') as f:
-                f.write(byte_file)
+            with open(self.file_dir / file_hash, 'wb') as file:
+                file.write(byte_file)
 
         keys = path.lstrip('/').split('/')
 
