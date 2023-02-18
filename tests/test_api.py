@@ -8,34 +8,34 @@ class FileAPITest(unittest.TestCase):
     def setUp(self) -> None:
         self.app = app.test_client()
 
-    def test_a_upload(self):
+    def test_a_upload_public(self):
         data = {'file': (BytesIO(b'Hello world'), 'test_file')}
 
-        response = self.app.put('/file/public', data=data)
+        response = self.app.put('/api/file/public', data=data)
 
         self.assertEqual(response.status_code, 201, "Bad Status Code")
 
-    def test_get_file(self):
-        response = self.app.get('/file/public/test_file')
+    def test_get_file_public(self):
+        response = self.app.get('/api/file/public/test_file')
 
         self.assertEqual(response.status_code, 200, "Bad Status Code")
         self.assertEqual(response.data.decode('UTF-8'), 'Hello world')
 
-    def test_a_upload2(self):
+    def test_a_upload2_public(self):
         data = {'file': (BytesIO(b'Hello world'), 'test_file_in_dir')}
 
-        response = self.app.put('/file/public/dir1', data=data)
+        response = self.app.put('/api/file/public/dir1', data=data)
 
         self.assertEqual(response.status_code, 201, "Bad Status Code")
 
-    def test_get_file2(self):
-        response = self.app.get('/file/public/dir1/test_file_in_dir')
+    def test_get_file2_public(self):
+        response = self.app.get('/api/file/public/dir1/test_file_in_dir')
 
         self.assertEqual(response.status_code, 200, "Bad Status Code")
         self.assertEqual(response.data.decode('UTF-8'), 'Hello world')
 
-    def test_list_dir(self):
-        response = self.app.get('/file/public')
+    def test_list_dir_public(self):
+        response = self.app.get('/api/file/public')
 
         data = json.loads(response.data)['data']
 
@@ -45,7 +45,7 @@ class FileAPITest(unittest.TestCase):
             self.assertNotEqual(data['next'], -114514, 'Something went wrong!')
 
         while d_next > 0:
-            response = self.app.get(f'/file/public?next={d_next}')
+            response = self.app.get(f'/api/file/public?next={d_next}')
 
             data = json.loads(response.data)['data']
 

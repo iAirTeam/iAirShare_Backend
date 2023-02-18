@@ -9,7 +9,6 @@ import atexit
 from werkzeug.datastructures import FileStorage
 
 from .vars import *
-from .queries import *
 from .exceptions import *
 from .encrypt import custom_hash, hash_file
 
@@ -26,6 +25,7 @@ FileMapping = Dict[FileName, File]
 class RepoConfigStructure(TypedDict):
     repo_name: str
     permission_nodes: dict[str, bool | Type["permission_nodes"]]
+    access_token: str
     mapping: FileMapping
 
 
@@ -98,50 +98,66 @@ class FileAPIBase(ABC):
         """
         pass
 
+    @abstractmethod
+    def can_access_repo(self, access_token) -> bool:
+        pass
 
-class FileAPIDrive(FileAPIBase):
+    @property
+    @abstractmethod
+    def repo_exist(self) -> bool:
+        pass
 
-    def __init__(self, repo_name=None):
+
+class FileAPIDrive(FileAPIBase, ABC):
+
+    def __init__(self, create_not_exist=True, repo_name=None):
+        super().__init__()
 
         base_dir = pathlib.Path('instance')
         file_dir = base_dir / 'files'
-
-        if not file_dir.exists():
-            file_dir.mkdir(parents=True)
-        if not base_dir.is_dir():
-            base_dir.unlink()
-            file_dir.mkdir(parents=True, exist_ok=True)
+        config_dir = base_dir / ('config' if not repo_name else repo_name.lower() + "_config.json")
 
         self.base_dir: pathlib.Path = pathlib.Path(base_dir)
         self.file_dir: pathlib.Path = pathlib.Path(file_dir)
 
-        config_dir = base_dir / ('config' if not repo_name else repo_name.lower() + "_config.json")
-
         self.config: RepoConfigStructure = {
             "repo_name": repo_name,
             "mapping": {},
-            "permission_nodes": {}
+            "permission_nodes": {},
+            "access_token": ""
         }
 
-        if not config_dir.exists():
+        self.config_dir: pathlib.Path = pathlib.Path(config_dir)
+
+        self.access_token: str = None
+
+        if config_dir.exists():
+            atexit.register(self._save_storage)
+
+        if not file_dir.exists() and create_not_exist:
+            file_dir.mkdir(parents=True)
+        if not base_dir.is_dir() and create_not_exist:
+            base_dir.unlink()
+            file_dir.mkdir(parents=True, exist_ok=True)
+
+        if not config_dir.exists() and create_not_exist:
             with config_dir.open('w') as file:
                 json.dump(self.config, file)
-        elif not config_dir.is_file():
+        elif not config_dir.is_file() and create_not_exist:
             config_dir.unlink(missing_ok=True)
             with config_dir.open('w') as file:
                 json.dump(self.config, file)
         else:
-            with open(config_dir, 'r+', encoding='UTF-8') as file:
-                try:
-                    self.config: RepoConfigStructure = json.load(file)
-                except ValueError:
-                    json.dump(self.config, file)
+            try:
+                with config_dir.open('r+', encoding='UTF-8') as file:
+                    try:
+                        self.config: RepoConfigStructure = json.load(file)
+                    except ValueError:
+                        json.dump(self.config, file)
+            except FileNotFoundError:
+                pass
 
         self.mapping = self.config['mapping']
-
-        self.config_dir: pathlib.Path = pathlib.Path(config_dir)
-
-        atexit.register(self._save_storage)
 
     def _save_storage(self):
         with open(self.config_dir, 'w', encoding='UTF-8') as file:
@@ -230,7 +246,10 @@ class FileAPIDrive(FileAPIBase):
                 for _ in range(200):
                     iter_storage.popitem()
             iter_storage.update({iter_id: (iter(dir_iter), len(dir_iter))})
-            return next(iter_storage[iter_id][0]), len(dir_iter), iter_id
+            try:
+                return next(iter_storage[iter_id][0]), len(dir_iter), iter_id
+            except StopIteration:
+                return None, 0, 0
         else:
             dir_iter = None
             try:
@@ -278,6 +297,28 @@ class FileAPIDrive(FileAPIBase):
         else:
             return False
 
+    def __getattribute__(self, item: str):
+        import inspect
+        ret_item = super().__getattribute__(item)
+        if item in (
+                'can_access_repo',
+                '_save_storage'
+        ):
+            return ret_item
+
+        import inspect
+        frame = inspect.currentframe()
+
+        if frame.f_back.f_code.co_filename == frame.f_code.co_filename or callable(ret_item) and \
+                not (item.endswith('_dir') and item in (
+                        'config',
+                        'mapping'
+                )):
+            return ret_item
+
+        return ret_item if self.can_access_repo(self.access_token) \
+            else None
+
 
 class FileAPIPublic(FileAPIDrive):
     public_instance: "FileAPIPublic" = None
@@ -290,15 +331,24 @@ class FileAPIPublic(FileAPIDrive):
         return cls.public_instance
 
     def __init__(self):
-        super().__init__('Public')
+        super().__init__(repo_name='Public')
+
+    def can_access_repo(self, access_token) -> bool:
+        return True
+
+    def repo_exist(self) -> bool:
+        return True
 
 
-class FileAPIPrivateV1(FileAPIDrive, ABC):
+class FileAPIPrivate(FileAPIDrive):
+    @property
+    def repo_exist(self) -> bool:
+        return self.config_dir.exists() and self.file_dir.exists()
 
-    def __init__(self, file_path='file'):
-        super().__init__()
-        self.file_path = file_path
-        ...
+    def __init__(self, repo_id: str, access_token: str = '', create_not_exist=False):
+        super().__init__(create_not_exist=create_not_exist, repo_name=repo_id)
+        if self.can_access_repo(access_token):
+            self.access_token = access_token
 
-    def queries(self, file_hash):
-        raise NotImplementedError
+    def can_access_repo(self, access_token) -> bool:
+        return access_token == self.config['access_token']
