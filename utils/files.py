@@ -7,8 +7,9 @@ from io import BytesIO
 import atexit
 
 from werkzeug.datastructures import FileStorage
+import sqlalchemy as sa
 
-from .vars import *
+from .var import *
 from .exceptions import *
 from .encrypt import custom_hash, hash_file
 
@@ -369,3 +370,23 @@ class FileAPIPrivate(FileAPIDrive):
 
     def can_access_repo(self, access_token) -> bool:
         return access_token == self.config['access_token']
+
+
+class FileDBModel(database.Model):
+    id = sa.Column(sa.Integer, primary_key=True)
+    name = sa.Column(sa.Text)
+    file_id = sa.Column(sa.String(128), unique=True)
+    property = sa.Column()
+    access_token = sa.Column(sa.Text)
+
+
+class DirectoryDBModel(database.Model):
+    id = sa.Column(sa.Integer, primary_key=True)
+    name = sa.Column(sa.Text)
+    pointer = sa.Column()
+    access_token = sa.Column(sa.Text)
+
+
+class DisplayDBModel(database.Model):
+    id = sa.Column(sa.Integer, primary_key=True)
+    list = sa.Column()

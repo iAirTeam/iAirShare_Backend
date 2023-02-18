@@ -2,6 +2,7 @@ import unittest
 from io import BytesIO
 from app import app
 import json
+from flask_sqlalchemy import Integer
 
 
 class FileAPITest(unittest.TestCase):

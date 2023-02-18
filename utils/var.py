@@ -1,5 +1,7 @@
 from logging import getLogger as _getLogger
 
+from flask_sqlalchemy import SQLAlchemy
+
 logger = _getLogger("iAirShare")
 
 image_ext = [
@@ -14,3 +16,5 @@ video_ext = [
 audio_ext = [
     '.mp3', '.wma', '.rm', '.wav', '.flac', '.ogg'
 ]
+
+database: SQLAlchemy | None = None
