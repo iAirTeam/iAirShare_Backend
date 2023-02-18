@@ -9,11 +9,11 @@ bp = Blueprint("file", __name__, url_prefix='/api/file')
 public_repo = FileAPIPublic()
 
 
-def file_iter(req_repo, count, path, d_next):
+def file_iter(req_repo, count: int, path: str, d_next):
     if count > 20:
         count = 20
     first, total, d_next = req_repo.next_repo_dir(path, d_next=d_next)
-    result = {"total": total, 'next': 0, 'list': [first]}
+    result = {"total": total, 'next': 0, 'files': first}
 
     for _ in range(count):
         if d_next == 0:
@@ -24,7 +24,7 @@ def file_iter(req_repo, count, path, d_next):
         if val is None:
             break
         result['total'] = total
-        result['list'].append(val)
+        result['files'].update(val)
 
     result['next'] = d_next
 
@@ -32,13 +32,13 @@ def file_iter(req_repo, count, path, d_next):
 
 
 @bp.route('/<repo>/list_root', methods=['GET', 'POST'])
-def get_file_list():
+def get_file_list(repo='public'):
     req_repo = public_repo
     if repo != 'public':
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(status=400, msg='repo not exist or access denied')
+            return kw_gen(status=400, message='repo not exist or access denied')
 
     count = request.values.get('count', 0)
     d_next = request.values.get('next', 0)
@@ -46,7 +46,7 @@ def get_file_list():
         count = int(count)
         d_next = int(d_next)
     except ValueError:
-        return kw_gen(status=400, msg='bad argument')
+        return kw_gen(status=400, message='bad argument')
     result = file_iter(req_repo, count, '/', d_next)
 
     return kw_gen(status=200, data=result)
@@ -60,7 +60,7 @@ def files_operation(repo='public'):
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(status=400, msg='repo not exist or access denied')
+            return kw_gen(status=400, message='repo not exist or access denied')
 
     match request.method:
         case "GET":
@@ -71,7 +71,7 @@ def files_operation(repo='public'):
                 count = int(count)
                 d_next = int(d_next)
             except ValueError:
-                return kw_gen(status=400, msg='bad argument')
+                return kw_gen(status=400, message='bad argument')
 
             if not filename:
                 result = file_iter(req_repo, count, '/', d_next)
@@ -79,7 +79,7 @@ def files_operation(repo='public'):
                 return kw_gen(status=200, data=result)
             else:
                 # TODO: Get File here, but not now!
-                return kw_gen(status=400, msg="I don't want to make it work! :(")
+                return kw_gen(status=400, message="I don't want to make it work! :(")
 
         case "PUT" | "POST":
             files = request.files.getlist('file')
@@ -103,16 +103,16 @@ def file_operation(repo='public', _=None):
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(status=400, msg='repo not exist or access denied')
+            return kw_gen(status=400, message='repo not exist or access denied')
 
     storage_path = request.full_path.lstrip(f'{bp.url_prefix}/file/{repo}') \
         .rstrip('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
 
     if not storage_path:
-        return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg="Invalid Storage Path")
+        return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, message="Invalid Storage Path")
 
     if repo != 'public':
-        return kw_gen(_status=HTTPStatus.NOT_FOUND, status=404, msg='repo_not_exist')
+        return kw_gen(_status=HTTPStatus.NOT_FOUND, status=404, message='repo_not_exist')
 
     match request.method:
         case 'GET':
@@ -122,12 +122,12 @@ def file_operation(repo='public', _=None):
                 count = int(count)
                 d_next = int(d_next)
             except ValueError:
-                return kw_gen(status=400, msg='bad argument')
+                return kw_gen(status=400, message='bad argument')
 
             file_id = req_repo.quires_repo_file(storage_path)
 
             if not file_id:
-                return kw_gen(status=404, msg='file not found')
+                return kw_gen(status=404, message='file not found')
 
             if file_id == '[Directory]':
                 result = file_iter(req_repo, count, storage_path, d_next)

@@ -100,17 +100,24 @@ class FileAPIBase(ABC):
 
     @abstractmethod
     def can_access_repo(self, access_token) -> bool:
+        """是否可以访问存储库"""
         pass
 
     @property
     @abstractmethod
     def repo_exist(self) -> bool:
+        """存储库是否存在"""
         pass
 
 
 class FileAPIDrive(FileAPIBase, ABC):
 
     def __init__(self, create_not_exist=True, repo_name=None):
+        """
+
+        :param create_not_exist: 当不存在时创建
+        :param repo_name: 存储库名称
+        """
         super().__init__()
 
         base_dir = pathlib.Path('instance')
@@ -189,7 +196,7 @@ class FileAPIDrive(FileAPIBase, ABC):
 
     def _queries(self, file_id) -> BytesIO | None:
         file_path = pathlib.Path(self.file_dir) / file_id
-        if not file_path.exists():
+        if not file_path.is_file():
             return None
         with open(file_path, 'rb') as file:
             return BytesIO(file.read())
@@ -225,47 +232,58 @@ class FileAPIDrive(FileAPIBase, ABC):
         if not isinstance(directory_data, dict):
             return None
 
-        result = []
+        result = {}
         for key in directory_data:
             data = directory_data[key]
             if isinstance(data, str):
-                result.append(key)
+                result.update({key: {
+                    "type": 'file',
+                }})
             elif isinstance(data, dict):
-                result.append('[directory]')
+                result.update({key: {
+                    "type": 'directory',
+                }})
             else:
-                result.append('[undefined]')
+                result.append(result.update({key: {
+                    "type": 'undefined',
+                }}))
 
         return result
 
     def next_repo_dir(self, path: Optional[str], d_next: int = None):
         if not d_next:
-            dir_iter = self.list_repo_dir(path)
-            iter_id = int(str(abs(hash(str(dir_iter)) + hash(path)))[:6])
+            dir_lst = self.list_repo_dir(path)
+            iter_id = int(str(abs(hash(str(dir_lst)) + hash(path)))[:6])
             iter_id += random.randint(-2000, 1000)
             if len(iter_storage) > 300:
                 for _ in range(200):
                     iter_storage.popitem()
-            iter_storage.update({iter_id: (iter(dir_iter), len(dir_iter))})
+            iter_storage.update({iter_id: (iter(dir_lst), dir_lst, len(dir_lst))})
             try:
-                return next(iter_storage[iter_id][0]), len(dir_iter), iter_id
+                key = next(iter_storage[iter_id][0])
+                return {key: dir_lst[key]}, len(dir_lst), iter_id
             except StopIteration:
                 return None, 0, 0
         else:
-            dir_iter = None
+            info = None
             try:
-                dir_iter = iter_storage.pop(d_next)
+                info = iter_storage.pop(d_next)
             except KeyError:
                 pass
 
-            if not dir_iter:
+            if not info:
                 return None, 0, -114514
 
             try:
-                value = next(dir_iter[0])
-                iter_id = int(str(abs(hash(str(dir_iter) + str(value)) + hash(path)))[:8])
+                dir_iter = info[0]
+                lst = info[1]
+                length = info[2]
+
+                key = next(dir_iter)
+                iter_id = int(str(abs(hash(str(dir_iter) + str(dir_iter)) + hash(path)))[:8])
                 iter_id += random.randint(-2000, 1000)
-                iter_storage.update({iter_id: (dir_iter[0], dir_iter[1])})
-                return value, dir_iter[1], iter_id
+                iter_storage.update({iter_id: (dir_iter, lst, length)})
+                return {key: lst[key]}, length, iter_id
             except StopIteration:
                 return None, 0, 0
 
@@ -338,7 +356,6 @@ class FileAPIPublic(FileAPIDrive):
 
     def repo_exist(self) -> bool:
         return True
-
 
 class FileAPIPrivate(FileAPIDrive):
     @property
