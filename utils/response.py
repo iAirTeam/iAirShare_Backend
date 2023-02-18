@@ -22,5 +22,5 @@ def gen_json_response_kw(_status=HTTPStatus.OK, **kwargs) -> Response:
 
 
 def gen_json_response(dictionary: dict, _status=HTTPStatus.OK) -> Response:
-    return Response(gen_response_str(**dictionary),
+    return Response(json.dumps(dictionary, ensure_ascii=False),
                     mimetype='application/json', status=_status)

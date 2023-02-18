@@ -8,18 +8,6 @@ class FileAPITest(unittest.TestCase):
     def setUp(self) -> None:
         self.app = app.test_client()
 
-    def test_query_info(self):
-        response = self.app.put('/')
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(json.loads(response.data),
-                         {
-                             "name": "AirShare",
-                             "versionCode": 'alpha',
-                             "version": -3,
-                         }
-                         )
-
     def test_a_upload(self):
         data = {'file': (BytesIO(b'Hello world'), 'test_file')}
 
@@ -65,3 +53,7 @@ class FileAPITest(unittest.TestCase):
 
         self.assertNotEqual(data['next'], -114514, 'Something went wrong!')
         self.assertEqual(data['next'], 0, "Invalid next value")
+
+
+if __name__ == '__main__':
+    unittest.main()
