@@ -9,7 +9,7 @@ import atexit
 from werkzeug.datastructures import FileStorage
 import sqlalchemy as sa
 
-from .var import *
+from .var import database
 from .exceptions import *
 from .encrypt import custom_hash, hash_file
 
@@ -23,25 +23,14 @@ File = FileId | Type["FileMapping"]
 FileMapping = Dict[FileName, File]
 
 
-class RepoConfigStructure(TypedDict):
+class RepoConfigAccessStructure(TypedDict):
     repo_name: str
     permission_nodes: dict[str, bool | Type["permission_nodes"]]
     access_token: str
     mapping: FileMapping
 
 
-class FileAPIBase(ABC):
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def _queries(self, file_id) -> BytesIO | None:
-        """
-        通过 文件ID 获取文件数据
-        :param file_id: 文件ID
-        :return: 文件数据(BytesIO) 不存在时为 None
-        """
-        pass
+class FileAPIUser(ABC):
 
     @abstractmethod
     def upload_repo_file(self, path: Optional[str], file: FileStorage) -> tuple[str, tuple]:
@@ -70,6 +59,14 @@ class FileAPIBase(ABC):
         :return: 文件, 总数, 获取下一个的标识
         """
         pass
+
+    def quires_repo_file_id(self, path: str) -> FileId:
+        """
+        根据 路径 查找 文件ID (不要求实现)
+        :param path: 文件路径
+        :return: FileID(文件ID)
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def quires_repo_file(self, path: str) -> FileId:
@@ -111,42 +108,80 @@ class FileAPIBase(ABC):
         pass
 
 
-class FileAPIDrive(FileAPIBase, ABC):
-
-    def __init__(self, create_not_exist=True, repo_name=None):
+class FileAPIStorage(ABC):
+    @abstractmethod
+    def __init__(self, create_not_exist: bool):
         """
+        :param create_not_exist: 当不存在时创建
+        """
+        pass
 
+    @abstractmethod
+    def _upload(self, file: FileStorage):
+        """
+        通过 file 上传文件
+        :param file: Flask Werkzeug FileStorage 实例
+        :return: 文件id
+        """
+        pass
+
+    @abstractmethod
+    def _queries(self, file_id) -> BytesIO | None:
+        """
+        通过 文件ID 获取文件数据
+        :param file_id: 文件ID
+        :return: 文件数据(BytesIO) 不存在时为 None
+        """
+        pass
+
+
+class FileAPIConfig(ABC):
+    def __init__(self, repo_name: str, create_not_exist: bool):
+        """
         :param create_not_exist: 当不存在时创建
         :param repo_name: 存储库名称
         """
-        super().__init__()
+        pass
 
+    @property
+    @abstractmethod
+    def repo_name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def config(self) -> RepoConfigAccessStructure:
+        pass
+
+    @property
+    def mapping(self) -> FileMapping:
+        return self.config['mapping']
+
+
+class FileAPIDriveBase:
+    def __init__(self):
         base_dir = pathlib.Path('instance')
         file_dir = base_dir / 'files'
-        config_dir = base_dir / ('config' if not repo_name else repo_name.lower() + "_config.json")
 
         self.base_dir: pathlib.Path = pathlib.Path(base_dir)
         self.file_dir: pathlib.Path = pathlib.Path(file_dir)
 
-        self.config: RepoConfigStructure = {
+
+class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig, ABC):
+    def __init__(self, repo_name=None, create_not_exist=True):
+        super().__init__()
+
+        self._config: RepoConfigAccessStructure = {
             "repo_name": repo_name,
             "mapping": {},
             "permission_nodes": {},
             "access_token": ""
         }
 
-        self.config_dir: pathlib.Path = pathlib.Path(config_dir)
-
-        self.access_token: str = None
+        config_dir = self.base_dir / ('config' if not repo_name else repo_name.lower() + "_config.json")
 
         if config_dir.exists():
             atexit.register(self._save_storage)
-
-        if not file_dir.exists() and create_not_exist:
-            file_dir.mkdir(parents=True)
-        if not base_dir.is_dir() and create_not_exist:
-            base_dir.unlink()
-            file_dir.mkdir(parents=True, exist_ok=True)
 
         if not config_dir.exists() and create_not_exist:
             with config_dir.open('w') as file:
@@ -159,17 +194,71 @@ class FileAPIDrive(FileAPIBase, ABC):
             try:
                 with config_dir.open('r+', encoding='UTF-8') as file:
                     try:
-                        self.config: RepoConfigStructure = json.load(file)
+                        self._config: RepoConfigAccessStructure = json.load(file)
                     except ValueError:
                         json.dump(self.config, file)
             except FileNotFoundError:
                 pass
 
-        self.mapping = self.config['mapping']
+        self.config_dir = config_dir
+        self._mapping = self.config['mapping']
 
     def _save_storage(self):
         with open(self.config_dir, 'w', encoding='UTF-8') as file:
             json.dump(self.config, file, ensure_ascii=False)
+
+    def repo_name(self) -> str:
+        return self._config['repo_name']
+
+    @property
+    def config(self) -> RepoConfigAccessStructure:
+        return self._config
+
+    @property
+    def mapping(self):
+        return self._mapping
+
+
+class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
+    def __init__(self, create_not_exist=True):
+        super().__init__()
+
+        self.access_token: str = None
+
+        if not self.file_dir.exists() and create_not_exist:
+            self.file_dir.mkdir(parents=True)
+        if not self.base_dir.is_dir() and create_not_exist:
+            self.base_dir.unlink()
+            self.file_dir.mkdir(parents=True, exist_ok=True)
+
+    def _queries(self, file_id) -> BytesIO | None:
+        file_path = pathlib.Path(self.file_dir) / file_id
+        if not file_path.is_file():
+            return None
+        with open(file_path, 'rb') as file:
+            return BytesIO(file.read())
+
+    def _upload(self, file: FileStorage) -> str:
+        io = BytesIO()
+        file.save(io)
+        byte_file = io.getvalue()
+
+        file_hash = hash_file(byte_file)
+        if not (self.file_dir / file_hash).exists():
+            with (self.file_dir / file_hash).open('wb') as file:
+                file.write(data)
+        return file_hash
+
+
+class FileAPIAccessDrive(FileAPIStorageDrive, FileAPIConfigDrive, ABC):
+    def __init__(self, repo_name: str, create_not_exist: bool, access_token: str = None):
+        FileAPIStorageDrive.__init__(self, repo_name)
+        FileAPIConfigDrive.__init__(self, repo_name, create_not_exist)
+        self.access_token = access_token
+
+    @property
+    def repo_exist(self) -> bool:
+        return self.config_dir.exists() and self.file_dir.exists()
 
     @classmethod
     def _set_by_path(cls, d, path, val):
@@ -195,23 +284,9 @@ class FileAPIDrive(FileAPIBase, ABC):
             key = path.pop(0)
             return cls._get_by_path(d[key], path)
 
-    def _queries(self, file_id) -> BytesIO | None:
-        file_path = pathlib.Path(self.file_dir) / file_id
-        if not file_path.is_file():
-            return None
-        with open(file_path, 'rb') as file:
-            return BytesIO(file.read())
-
     def upload_repo_file(self, path: str, file: FileStorage) -> tuple[str, list[str]]:
-        io = BytesIO()
-        file.save(io)
-        byte_file = io.getvalue()
 
-        file_hash = hash_file(byte_file)
-
-        if not (self.file_dir / file_hash).exists():
-            with open(self.file_dir / file_hash, 'wb') as file:
-                file.write(byte_file)
+        file_hash = self._upload(file)
 
         keys = path.lstrip('/').split('/')
 
@@ -339,7 +414,7 @@ class FileAPIDrive(FileAPIBase, ABC):
             else None
 
 
-class FileAPIPublic(FileAPIDrive):
+class FileAPIPublic(FileAPIAccessDrive):
     public_instance: "FileAPIPublic" = None
 
     def __new__(cls, *args, **kwargs):
@@ -350,7 +425,7 @@ class FileAPIPublic(FileAPIDrive):
         return cls.public_instance
 
     def __init__(self):
-        super().__init__(repo_name='Public')
+        super().__init__(repo_name='Public', create_not_exist=True)
 
     def can_access_repo(self, access_token) -> bool:
         return True
@@ -358,11 +433,8 @@ class FileAPIPublic(FileAPIDrive):
     def repo_exist(self) -> bool:
         return True
 
-class FileAPIPrivate(FileAPIDrive):
-    @property
-    def repo_exist(self) -> bool:
-        return self.config_dir.exists() and self.file_dir.exists()
 
+class FileAPIPrivate(FileAPIAccessDrive):
     def __init__(self, repo_id: str, access_token: str = '', create_not_exist=False):
         super().__init__(create_not_exist=create_not_exist, repo_name=repo_id)
         if self.can_access_repo(access_token):
@@ -372,21 +444,32 @@ class FileAPIPrivate(FileAPIDrive):
         return access_token == self.config['access_token']
 
 
-class FileDBModel(database.Model):
-    id = sa.Column(sa.Integer, primary_key=True)
-    name = sa.Column(sa.Text)
-    file_id = sa.Column(sa.String(128), unique=True)
-    property = sa.Column()
-    access_token = sa.Column(sa.Text)
+class FileDBModelV2:
+    class FileDBModel(database.Model):
+        id = sa.Column(sa.Integer, primary_key=True)
+        name = sa.Column(sa.Text)
+        file_id = sa.Column(sa.String(128), unique=True)
+        property = sa.Column(sa.JSON)
+        access_token = sa.Column(sa.Text)
+
+    class DirectoryDBModel(database.Model):
+        id = sa.Column(sa.Integer, primary_key=True)
+        name = sa.Column(sa.Text)
+        pointer = sa.Column(sa.Integer, sa.ForeignKey('DirectoryDBModel'))
+        access_token = sa.Column(sa.Text)
+        property = sa.Column(sa.JSON)
+
+    class DisplayDBModel(database.Model):
+        id = sa.Column(sa.Integer, primary_key=True)
+        list = sa.Column()
 
 
-class DirectoryDBModel(database.Model):
-    id = sa.Column(sa.Integer, primary_key=True)
-    name = sa.Column(sa.Text)
-    pointer = sa.Column()
-    access_token = sa.Column(sa.Text)
+class FileDBModelV1:
+    class RepoDBModel(database.Model):
+        id = sa.Column(sa.Integer, primary_key=True)
+        repo_name = sa.Column(sa.Text, unique=True)
+        access_token = sa.Column(sa.Text)
+        mapping = sa.Column(sa.JSON)
 
 
-class DisplayDBModel(database.Model):
-    id = sa.Column(sa.Integer, primary_key=True)
-    list = sa.Column()
+RepoDBModel = FileDBModelV1.RepoDBModel

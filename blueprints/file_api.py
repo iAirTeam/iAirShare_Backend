@@ -96,8 +96,8 @@ def files_operation(repo='public'):
 
 
 # noinspection PyProtectedMember
-@bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
-def file_operation(repo='public', _=None):
+@bp.route('/<repo>/<path:fn>', methods=['GET', 'PUT', 'DELETE'])
+def file_operation(repo='public', fn=None):
     req_repo = public_repo
     if repo != 'public':
         token = request.values.get('token', '')
@@ -105,8 +105,9 @@ def file_operation(repo='public', _=None):
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
             return kw_gen(status=400, message='repo not exist or access denied')
 
-    storage_path = request.full_path.lstrip(f'{bp.url_prefix}/file/{repo}') \
-        .rstrip('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
+    storage_path = request.full_path \
+        .removeprefix(f'{bp.url_prefix}/{repo}/') \
+        .removesuffix('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
 
     if not storage_path:
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, message="Invalid Storage Path")
