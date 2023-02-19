@@ -112,9 +112,6 @@ def file_operation(repo='public', fn=None):
     if not storage_path:
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, message="Invalid Storage Path")
 
-    if repo != 'public':
-        return kw_gen(_status=HTTPStatus.NOT_FOUND, status=404, message='repo_not_exist')
-
     match request.method:
         case 'GET':
             count = request.values.get('count', 0)
