@@ -140,6 +140,7 @@ class FileAPIImpl(ABC):
         pass
 
 
+# noinspection PyUnusedLocal
 class FileAPIStorage(ABC):
     @abstractmethod
     def __init__(self, create_not_exist: bool):
@@ -176,6 +177,8 @@ class FileAPIStorage(ABC):
         return self._queries(file_info['file_id'])
 
 
+# noinspection PyUnusedLocal
+@match_class_typing
 class FileAPIConfig(ABC):
     def __init__(self, repo_name: str, create_not_exist: bool):
         """
