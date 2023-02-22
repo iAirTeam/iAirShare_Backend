@@ -134,7 +134,8 @@ def file_operation(repo='public', fn=None):
                 return kw_gen(status=200, data=result)
 
             return send_file(req_repo.get_file(file_info),
-                             mimetype='file')
+                             last_modified=file_info['last_update'],
+                             mimetype=file_info['mimetype'])
         case 'PUT' | 'POST':
             files = request.files.getlist('file')
             if not files:
