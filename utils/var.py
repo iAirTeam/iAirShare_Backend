@@ -1,5 +1,6 @@
-from logging import getLogger as _getLogger
+from __future__ import annotations
 
+from logging import getLogger as _getLogger
 from flask_sqlalchemy import SQLAlchemy
 
 logger = _getLogger("iAirShare")

@@ -4,18 +4,18 @@
 
 Client -1(authContent)--------->UserManager------|
 ^ | ^ |
-|------2(cookie)-------| |4(checkUserAuth) |5(checkstatus)
+|------2(cookie)-------| |4(checkUserAuth) |5(checkStatus)
 | | |
 |----3(requireSomething)---->StorageSystem  <-|
 |--------------------------------|
 6(Something)d
 
-## Databse V1
+## Database V1
 
 ## Table Repo
 
 Id, DatabaseName, StructureMapping
-0, public, {xddd, xddd, xddd}
+0, public, {foo, bar}
 
 ## Database V2
 

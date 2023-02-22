@@ -122,17 +122,17 @@ def file_operation(repo='public', fn=None):
             except ValueError:
                 return kw_gen(status=400, message='bad argument')
 
-            file_id = req_repo.quires_repo_file(storage_path)
+            file_info = req_repo.quires_repo_file(storage_path)
 
-            if not file_id:
+            if not file_info:
                 return kw_gen(status=404, message='file not found')
 
-            if file_id == '[Directory]':
+            if file_info == '[Directory]':
                 result = file_iter(req_repo, count, storage_path, d_next)
 
                 return kw_gen(status=200, data=result)
 
-            return send_file(req_repo._queries(file_id),
+            return send_file(req_repo.get_file(file_info),
                              mimetype='file')
         case 'PUT' | 'POST':
             files = request.files.getlist('file')

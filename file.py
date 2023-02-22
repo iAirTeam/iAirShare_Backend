@@ -21,7 +21,7 @@ class File:
                 response["extra"]["width"] = image.width
                 response["extra"]["height"] = image.height
                 response["file_type"] = filetype
-            except Image.UnidentfiedImageError as e:
+            except Image.UnidentfiedImageError:
                 response["extra"] = {}
                 response["file_type"] = 'other'
         elif filetype == 'video':
@@ -38,7 +38,7 @@ class File:
                 }
                 response["extra"]["fps"] = fps
                 response["file_type"] = filetype
-            except ffmpeg.Error as e:
+            except ffmpeg.Error:
                 response["extra"] = {}
                 response["file_type"] = 'other'
         else:

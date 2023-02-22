@@ -9,14 +9,14 @@ users: set["AsUser"] = set()
 
 class AsUser:
     def __init__(self, name: str,
-                 initscore: int = 100,
+                 score: int = 100,
                  nick: str = None
                  ):
         self.id = len(users) + 3001
         self.name = name
         self.nick = nick
         self.creation_date = datetime.datetime.now()
-        self.score = initscore
+        self.score = score
         self.roles: list[Role] = []
 
     def __hash__(self):

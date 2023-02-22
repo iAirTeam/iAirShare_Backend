@@ -1,12 +1,22 @@
+from __future__ import annotations
+
 import json
 import pathlib
 import random
+import time
+import sys
 from typing import Optional, TypedDict, Self, Type, Literal, Union, Tuple, List, Dict
+
+if sys.version_info < (3, 11):  # Support for lower version
+    from typing_extensions import NotRequired, TypedDict
+
+from typing_extensions import Required, NotRequired
 from abc import abstractmethod, ABC
 from io import BytesIO
 import atexit
 
 from werkzeug.datastructures import FileStorage
+from strongtyping.strong_typing import TypeMisMatch, match_typing, match_class_typing
 import sqlalchemy as sa
 
 from .var import database
@@ -14,33 +24,44 @@ from .exceptions import *
 from .encrypt import custom_hash, hash_file
 
 RepoId = str
-FileId = str
+FileId = Optional[str]
 FileName = str
 
 iter_storage = {}
 
-File = FileId | Type["FileMapping"]
-FileMapping = Dict[FileName, File]
 
-
-class FileInfo(TypedDict):
+@match_class_typing
+class FileStaticInfo(TypedDict):
     file_id: FileId
     file_size: int
+    property: "FileStaticProperty"
+
+
+@match_class_typing
+class FileSpecialInfo(TypedDict):
+    file_id: FileId
     mimetype: str
-    property: "FileProperty"
+    file_size: int
+    last_update: int
 
 
-class FileProperty(TypedDict):
-    file_type: str
+@match_class_typing
+class FileStaticProperty(TypedDict, total=False):
+    detected_file_type: Optional[str]
     i_width: int
     i_height: int
-    v_fpsavg: int
+    v_fps_avg: int
     v_bitrate: int
-    a_bitrate: int
-    av_lengthsec: float
+    v_a_bitrate: int
+    av_length_sec: float
     prop_ver: int
 
 
+File = Union[FileSpecialInfo, "FileMapping"]
+FileMapping = Dict[FileName, File]
+
+
+@match_class_typing
 class RepoConfigAccessStructure(TypedDict):
     repo_name: str
     permission_nodes: dict[str, bool | Type["permission_nodes"]]
@@ -72,6 +93,7 @@ class FileAPIImpl(ABC):
     def next_repo_dir(self, path: Optional[str], d_next: int = None):
         """
         获取 Repo 中 path 目录下 的 一个文件(夹)
+        不强制要求实现
         :param path: 目录位置
         :param d_next: 获取下一个文件(夹)用的标识
         :return: 文件, 总数, 获取下一个的标识
@@ -79,7 +101,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def quires_repo_file(self, path: str) -> Optional[FileInfo] | str:
+    def quires_repo_file(self, path: str) -> Optional[FileStaticInfo] | str:
         """
         根据 路径 获取文件信息
         :param path: 文件路径
@@ -127,16 +149,17 @@ class FileAPIStorage(ABC):
         pass
 
     @abstractmethod
-    def _upload(self, file: FileStorage):
+    def _upload(self, file: FileStorage) -> FileStaticInfo:
         """
         通过 file 上传文件
         :param file: Flask Werkzeug FileStorage 实例
-        :return: 文件id
+        :return: FileStaticInfo
         """
         pass
 
     @abstractmethod
-    def _queries(self, file_id) -> Optional[BytesIO]:
+    @match_class_typing
+    def _queries(self, file_id: FileId) -> Optional[BytesIO]:
         """
         通过 文件ID 获取文件数据
         :param file_id: 文件ID
@@ -144,7 +167,7 @@ class FileAPIStorage(ABC):
         """
         pass
 
-    def get_file(self, file_info) -> Optional[BytesIO]:
+    def get_file(self, file_info: FileSpecialInfo | FileStaticInfo) -> Optional[BytesIO]:
         """
         通过文件信息获取文件数据
         :param file_info: 文件信息(如FileInfo)
@@ -256,7 +279,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
         with open(file_path, 'rb') as file:
             return BytesIO(file.read())
 
-    def _upload(self, file: FileStorage) -> tuple[str, BytesIO]:
+    def _upload(self, file: FileStorage) -> tuple[FileStaticInfo, BytesIO]:
         io = BytesIO()
         file.save(io)
         byte_file = io.getvalue()
@@ -266,7 +289,13 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
             with (self.file_dir / file_hash).open('wb') as file:
                 file.write(data)
 
-        return file_hash, io
+        file_info: FileStaticInfo = {
+            "file_id": file_hash,
+            "file_size": io.tell(),
+            "property": {}
+        }
+
+        return file_info, io
 
 
 class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, ABC):
@@ -303,29 +332,29 @@ class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, A
             key = path.pop(0)
             return cls._get_by_path(d[key], path)
 
-    def upload_repo_file(self, path: str, file: FileStorage) -> tuple[str, list[str]]:
+    def upload_repo_file(self, path: str, file: FileStorage) -> tuple[FileSpecialInfo, list[str]]:
 
-        file_hash, io = self._upload(file)
+        file_static, io = self._upload(file)
 
         io.close()
 
         keys = path.lstrip('/').split('/')
 
-        file_info: FileInfo = {
-            "file_id": file_hash,
-            "file_size":
+        file_info: FileSpecialInfo = {
+            "file_id": file_static['file_id'],
+            "mimetype": file.mimetype,
+            "file_size": file_static['file_size'],
+            "last_update": time.time_ns()
         }
 
-        file.mimetype
-
         if keys[0]:
-            self._set_by_path(self.mapping, keys + [file.filename], file_hash)
+            self._set_by_path(self.mapping, keys + [file.filename], file_info)
         else:
-            self.mapping.update({file.filename: file_hash})
+            self.mapping.update({file.filename: file_info})
 
-        return file_hash, keys
+        return file_info, keys
 
-    def list_repo_dir(self, path: str) -> Optional[list[str]]:
+    def list_repo_dir(self, path: str) -> Optional[dict[FileName, FileSpecialInfo]]:
         keys = path.lstrip('/').split('/')
 
         directory_data = self.mapping
@@ -338,19 +367,14 @@ class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, A
 
         result = {}
         for key in directory_data:
-            data = directory_data[key]
-            if isinstance(data, str):
-                result.update({key: {
-                    "type": 'file',
+            data: FileSpecialInfo = directory_data[key]
+            try:
+                data: FileSpecialInfo = data
+                result.update({key: data})
+            except TypeMisMatch:
+                result.update({key: None if isinstance(data, dict) else {
+                    "file_type": "directory"
                 }})
-            elif isinstance(data, dict):
-                result.update({key: {
-                    "type": 'directory',
-                }})
-            else:
-                result.append(result.update({key: {
-                    "type": 'undefined',
-                }}))
 
         return result
 
@@ -391,19 +415,26 @@ class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, A
             except StopIteration:
                 return None, 0, 0
 
-    def quires_repo_file(self, path) -> Optional[FileInfo] | str:
+    def quires_repo_file(self, path) -> Optional[FileSpecialInfo]:
         keys = path.split('/')
         try:
             file_info = self._get_by_path(self.mapping, keys)
-            if not isinstance(file_info, FileInfo):
+            try:
+                file_info: FileSpecialInfo = file_info
+            except TypeMisMatch:
                 if isinstance(file_info, dict):
-                    return '[Directory]'
+                    return FileSpecialInfo(
+                        file_id=None,
+                        mimetype='directory',
+                        file_size=-1,
+                        last_update=-1
+                    )
                 return None
             return file_info
         except KeyError:
             return None
 
-    def get_file(self, file_info: FileInfo) -> Optional[BytesIO]:
+    def get_file(self, file_info: FileStaticInfo | FileSpecialInfo) -> Optional[BytesIO]:
         return self._queries(file_info['file_id'])
 
     def unlink_repo_file(self, path) -> FileId:
