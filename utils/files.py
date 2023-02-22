@@ -23,6 +23,24 @@ File = FileId | Type["FileMapping"]
 FileMapping = Dict[FileName, File]
 
 
+class FileInfo(TypedDict):
+    file_id: FileId
+    file_size: int
+    mimetype: str
+    property: "FileProperty"
+
+
+class FileProperty(TypedDict):
+    file_type: str
+    i_width: int
+    i_height: int
+    v_fpsavg: int
+    v_bitrate: int
+    a_bitrate: int
+    av_lengthsec: float
+    prop_ver: int
+
+
 class RepoConfigAccessStructure(TypedDict):
     repo_name: str
     permission_nodes: dict[str, bool | Type["permission_nodes"]]
@@ -30,7 +48,7 @@ class RepoConfigAccessStructure(TypedDict):
     mapping: FileMapping
 
 
-class FileAPIUser(ABC):
+class FileAPIImpl(ABC):
 
     @abstractmethod
     def upload_repo_file(self, path: Optional[str], file: FileStorage) -> tuple[str, tuple]:
@@ -43,7 +61,7 @@ class FileAPIUser(ABC):
         pass
 
     @abstractmethod
-    def list_repo_dir(self, path: Optional[str]) -> list[str] | None:
+    def list_repo_dir(self, path: Optional[str]) -> Optional[list[str]]:
         """
         获取 Repo 中 path 目录下的文件(夹) 的列表
         :param path: 目录位置
@@ -60,20 +78,12 @@ class FileAPIUser(ABC):
         """
         pass
 
-    def quires_repo_file_id(self, path: str) -> FileId:
-        """
-        根据 路径 查找 文件ID (不要求实现)
-        :param path: 文件路径
-        :return: FileID(文件ID)
-        """
-        raise NotImplementedError
-
     @abstractmethod
-    def quires_repo_file(self, path: str) -> FileId:
+    def quires_repo_file(self, path: str) -> Optional[FileInfo] | str:
         """
-        通过 path 获取 文件ID
+        根据 路径 获取文件信息
         :param path: 文件路径
-        :return: 文件ID
+        :return: FileID(文件ID) (不存在时为空)
         """
         pass
 
@@ -126,13 +136,21 @@ class FileAPIStorage(ABC):
         pass
 
     @abstractmethod
-    def _queries(self, file_id) -> BytesIO | None:
+    def _queries(self, file_id) -> Optional[BytesIO]:
         """
         通过 文件ID 获取文件数据
         :param file_id: 文件ID
         :return: 文件数据(BytesIO) 不存在时为 None
         """
         pass
+
+    def get_file(self, file_info) -> Optional[BytesIO]:
+        """
+        通过文件信息获取文件数据
+        :param file_info: 文件信息(如FileInfo)
+        :return: 文件数据(BytesIO) 不存在时为 None
+        """
+        return self._queries(file_info['file_id'])
 
 
 class FileAPIConfig(ABC):
@@ -231,7 +249,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
             self.base_dir.unlink()
             self.file_dir.mkdir(parents=True, exist_ok=True)
 
-    def _queries(self, file_id) -> BytesIO | None:
+    def _queries(self, file_id) -> Optional[BytesIO]:
         file_path = pathlib.Path(self.file_dir) / file_id
         if not file_path.is_file():
             return None
@@ -247,10 +265,11 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
         if not (self.file_dir / file_hash).exists():
             with (self.file_dir / file_hash).open('wb') as file:
                 file.write(data)
-        return file_hash
+
+        return file_hash, io
 
 
-class FileAPIAccessDrive(FileAPIStorageDrive, FileAPIConfigDrive, ABC):
+class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, ABC):
     def __init__(self, repo_name: str, create_not_exist: bool, access_token: str = None):
         FileAPIStorageDrive.__init__(self, repo_name)
         FileAPIConfigDrive.__init__(self, repo_name, create_not_exist)
@@ -290,6 +309,13 @@ class FileAPIAccessDrive(FileAPIStorageDrive, FileAPIConfigDrive, ABC):
 
         keys = path.lstrip('/').split('/')
 
+        file_info: FileInfo = {
+            "file_id": file_hash,
+            "file_size":
+        }
+
+        file.mimetype
+
         if keys[0]:
             self._set_by_path(self.mapping, keys + [file.filename], file_hash)
         else:
@@ -297,7 +323,7 @@ class FileAPIAccessDrive(FileAPIStorageDrive, FileAPIConfigDrive, ABC):
 
         return file_hash, keys
 
-    def list_repo_dir(self, path: str) -> list[str] | None:
+    def list_repo_dir(self, path: str) -> Optional[list[str]]:
         keys = path.lstrip('/').split('/')
 
         directory_data = self.mapping
@@ -363,17 +389,20 @@ class FileAPIAccessDrive(FileAPIStorageDrive, FileAPIConfigDrive, ABC):
             except StopIteration:
                 return None, 0, 0
 
-    def quires_repo_file(self, path) -> FileId | None:
+    def quires_repo_file(self, path) -> Optional[FileInfo] | str:
         keys = path.split('/')
         try:
-            file_id = self._get_by_path(self.mapping, keys)
-            if not isinstance(file_id, str):
-                if isinstance(file_id, dict):
+            file_info = self._get_by_path(self.mapping, keys)
+            if not isinstance(file_info, FileInfo):
+                if isinstance(file_info, dict):
                     return '[Directory]'
                 return None
-            return file_id
+            return file_info
         except KeyError:
             return None
+
+    def get_file(self, file_info: FileInfo) -> Optional[BytesIO]:
+        return self._queries(file_info['file_id'])
 
     def unlink_repo_file(self, path) -> FileId:
         return self._set_by_path(self.mapping, path, None)
