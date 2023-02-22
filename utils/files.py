@@ -241,7 +241,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
     def __init__(self, create_not_exist=True):
         super().__init__()
 
-        self.access_token: str = None
+        self.access_token: Optional[str] = None
 
         if not self.file_dir.exists() and create_not_exist:
             self.file_dir.mkdir(parents=True)
@@ -256,7 +256,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
         with open(file_path, 'rb') as file:
             return BytesIO(file.read())
 
-    def _upload(self, file: FileStorage) -> str:
+    def _upload(self, file: FileStorage) -> tuple[str, BytesIO]:
         io = BytesIO()
         file.save(io)
         byte_file = io.getvalue()
@@ -271,7 +271,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
 
 class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, ABC):
     def __init__(self, repo_name: str, create_not_exist: bool, access_token: str = None):
-        FileAPIStorageDrive.__init__(self, repo_name)
+        FileAPIStorageDrive.__init__(self, create_not_exist)
         FileAPIConfigDrive.__init__(self, repo_name, create_not_exist)
         self.access_token = access_token
 
@@ -305,7 +305,9 @@ class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, A
 
     def upload_repo_file(self, path: str, file: FileStorage) -> tuple[str, list[str]]:
 
-        file_hash = self._upload(file)
+        file_hash, io = self._upload(file)
+
+        io.close()
 
         keys = path.lstrip('/').split('/')
 
