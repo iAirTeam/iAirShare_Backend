@@ -209,7 +209,7 @@ class FileAPIDriveBase:
 
 
 class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig, ABC):
-    def __init__(self, repo_name=None, create_not_exist=True):
+    def __init__(self, repo_name: str, create_not_exist=True):
         super().__init__()
 
         self._config: RepoConfigAccessStructure = {
@@ -219,10 +219,8 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig, ABC):
             "access_token": ""
         }
 
-        config_dir = self.base_dir / ('config' if not repo_name else repo_name.lower() + "_config.json")
+        config_dir = self.base_dir / f"{repo_name.lower() + '_' if repo_name else ''}config.json"
 
-        if config_dir.exists():
-            atexit.register(self._save_storage)
 
         if not config_dir.exists() and create_not_exist:
             with config_dir.open('w') as file:
@@ -241,7 +239,11 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig, ABC):
             except FileNotFoundError:
                 pass
 
+        if config_dir.exists():
+            atexit.register(self._save_storage)
+
         self.config_dir = config_dir
+
         self._mapping = self.config['mapping']
 
     def _save_storage(self):
@@ -261,8 +263,8 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig, ABC):
 
 
 class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
-    def __init__(self, create_not_exist=True):
-        super().__init__()
+    def __init__(self, repo_name: str, create_not_exist=True):
+        super().__init__(repo_name=repo_name, create_not_exist=create_not_exist)
 
         self.access_token: Optional[str] = None
 
@@ -300,7 +302,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
 
 class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, ABC):
     def __init__(self, repo_name: str, create_not_exist: bool, access_token: str = None):
-        FileAPIStorageDrive.__init__(self, create_not_exist)
+        FileAPIStorageDrive.__init__(self, repo_name, create_not_exist)
         FileAPIConfigDrive.__init__(self, repo_name, create_not_exist)
         self.access_token = access_token
 

@@ -38,7 +38,7 @@ def get_file_list(repo='public'):
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(status=400, message='repo not exist or access denied')
+            return kw_gen(_status=404, status=400, message='repo not exist or access denied')
 
     count = request.values.get('count', 0)
     d_next = request.values.get('next', 0)
@@ -60,7 +60,7 @@ def files_operation(repo='public'):
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(status=400, message='repo not exist or access denied')
+            return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, message='repo not exist or access denied')
 
     match request.method:
         case "GET":
@@ -79,7 +79,8 @@ def files_operation(repo='public'):
                 return kw_gen(status=200, data=result)
             else:
                 # TODO: Get File here, but not now!
-                return kw_gen(status=400, message="I don't want to make it work! :(")
+                return kw_gen(_status=HTTPStatus.NOT_IMPLEMENTED, status=400,
+                              message="I don't want to make it work! :(")
 
         case "PUT" | "POST":
             files = request.files.getlist('file')
