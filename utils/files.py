@@ -5,10 +5,12 @@ import pathlib
 import random
 import time
 import sys
-from typing import Optional, TypedDict, Self, Type, Literal, Union, Tuple, List, Dict
 
 if sys.version_info < (3, 11):  # Support for lower version
+    from typing import Optional, Type, Literal, Union, Tuple, List, Dict
     from typing_extensions import NotRequired, TypedDict
+else:
+    from typing import Optional, TypedDict, Type, Literal, Union, Tuple, List, Dict, Self
 
 from typing_extensions import Required, NotRequired
 from abc import abstractmethod, ABC
