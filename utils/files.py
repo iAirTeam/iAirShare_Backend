@@ -349,7 +349,7 @@ class FileAPIAccessDrive(FileAPIImpl, FileAPIStorageDrive, FileAPIConfigDrive, A
             "file_id": file_static['file_id'],
             "mimetype": file.mimetype,
             "file_size": file_static['file_size'],
-            "last_update": time.time_ns()
+            "last_update": time.time()
         }
 
         if keys[0]:

@@ -97,8 +97,8 @@ def files_operation(repo='public'):
 
 
 # noinspection PyProtectedMember
-@bp.route('/<repo>/<path:fn>', methods=['GET', 'PUT', 'DELETE'])
-def file_operation(repo='public'):
+@bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
+def file_operation(repo='public', _=None):
     req_repo = public_repo
     if repo != 'public':
         token = request.values.get('token', '')
