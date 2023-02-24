@@ -4,5 +4,6 @@ AirShare 后端
 *AirShare Backend [开发中...]*
 
 ## Installtion
-  pip install -r requirements.txt
-  python app.py
+    git clone https://github.com/iAirTeam/iAirShare_Backend.git
+    pip install -r requirements.txt
+    python app.py
