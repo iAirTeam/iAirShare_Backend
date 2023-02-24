@@ -1,7 +1,7 @@
 # iAirShare_Backend
-AirShare Backend [开发中...]
 
-AirShare 后端
+AirShare 后端  
+*AirShare Backend [开发中...]*
 
 ## Installtion
   pip install -r requirements.txt
