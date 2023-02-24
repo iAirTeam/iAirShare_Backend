@@ -255,6 +255,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig, ABC):
         with open(self.config_dir, 'w', encoding='UTF-8') as file:
             json.dump(self.config, file, ensure_ascii=False)
 
+    @property
     def repo_name(self) -> str:
         return self._config['repo_name']
 

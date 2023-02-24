@@ -53,6 +53,7 @@ def get_file_list(repo='public'):
 
 
 # noinspection PyProtectedMember
+@bp.route('/<repo>/')
 @bp.route('/<repo>', methods=['GET', 'PUT', 'POST'])
 def files_operation(repo='public'):
     req_repo = public_repo
@@ -84,8 +85,12 @@ def files_operation(repo='public'):
 
         case "PUT" | "POST":
             files = request.files.getlist('file')
-            if not files:
-                return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400)
+            if not files and request.method == 'POST':
+                return dict_gen({
+                    "repo_name": req_repo.repo_name,
+                })
+            elif not files:
+                return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400, msg="no file selected")
 
             result = []
 
