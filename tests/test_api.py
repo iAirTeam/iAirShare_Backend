@@ -1,7 +1,6 @@
 import unittest
 from io import BytesIO
 from app import app
-import json
 
 
 class FileAPITest(unittest.TestCase):
@@ -37,9 +36,7 @@ class FileAPITest(unittest.TestCase):
     def test_list_dir_public(self):
         response = self.app.get('/api/file/public')
 
-        data = json.loads(response.data)['data']
-
-        d_next = data['next']
+        d_next = response.json['data']['next']
 
         if d_next <= 0:
             self.assertNotEqual(data['next'], -114514, 'Something went wrong!')
@@ -47,12 +44,10 @@ class FileAPITest(unittest.TestCase):
         while d_next > 0:
             response = self.app.get(f'/api/file/public?next={d_next}')
 
-            data = json.loads(response.data)['data']
+            d_next = response.json['data']['next']
 
-            d_next = data['next']
-
-        self.assertNotEqual(data['next'], -114514, 'Something went wrong!')
-        self.assertEqual(data['next'], 0, "Invalid next value")
+        self.assertNotEqual(response.json['data']['next'], -114514, 'Something went wrong!')
+        self.assertEqual(response.json['data']['next'], 0, "Invalid next value")
 
 
 if __name__ == '__main__':
