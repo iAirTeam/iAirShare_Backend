@@ -68,7 +68,14 @@ class FileBase:
     def __hash__(self):
         if self.file_name is None or self.file_type is None:
             return 0
-        return hash(self.file_name) + hash(self.file_type)
+        tmp_hash = hash(self.file_name) + hash(self.file_type)
+        return tmp_hash
+
+    def __eq__(self, other):
+        if self.__hash__() == other.__hash__():
+            return True
+        else:
+            return False
 
 
 class File(FileBase):
