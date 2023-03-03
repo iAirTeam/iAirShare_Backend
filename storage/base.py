@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
+import copy
+import inspect
 import pathlib
 import random
-import time
 import sys
-import copy
 
 if sys.version_info < (3, 11):  # Support for lower version
     from typing import Optional, Type, Literal, Union, Tuple, List, Dict, Set
@@ -13,19 +12,10 @@ if sys.version_info < (3, 11):  # Support for lower version
 else:
     from typing import Optional, TypedDict, Type, Literal, Union, Tuple, List, Dict, Self, Set
 
-from typing_extensions import Required, NotRequired
-from enum import Enum
 from abc import abstractmethod, ABC
 from io import BytesIO
-import atexit
 
 from werkzeug.datastructures import FileStorage
-from strongtyping.strong_typing import TypeMisMatch, match_typing, match_class_typing
-import sqlalchemy as sa
-
-from utils.var import database
-from utils.exceptions import *
-from utils.encrypt import custom_hash, hash_file
 
 from .structure import *
 
@@ -33,9 +23,10 @@ from .structure import *
 class FileAPIImpl(ABC):
 
     @abstractmethod
-    def upload_repo_file(self, path: Optional[str], file: FileStorage) -> FileId:
+    def upload_repo_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
         """
         向 Repo 上传文件
+        :param create_parents: 在父目录不存在时, 是否自动创建
         :param path: 目录位置
         :param file: 文件(Flask Werkzeug的FileStorage)
         :return: FileId
@@ -71,21 +62,21 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def unlink_repo_file(self, path: str) -> FileId:
+    def unlink_repo_file(self, path: str) -> bool:
         """
-        移除目标 path 指向的内容 (≈可以理解为删除文件)
-        :param path: 文件路劲
-        :return:
+        移除目标 path mapping 链接 (≈删除文件)
+        :param path: 文件路径
+        :return: 是否成功删除
         """
         pass
 
     @abstractmethod
-    def move_repo_file(self, old_path: str, new_path: str) -> bool:
+    def move_repo_file(self, src_path: str, dest_path: str) -> bool:
         """
         移动目标 old_path 指向的内容到 new_path (≈可以理解为移动文件(夹))
-        :param old_path: 欲移动文件(夹)位置
-        :param new_path: 目标位置
-        :return: 是否成功
+        :param dest_path: 目标位置
+        :param src_path: 欲移动文件(夹)位置
+        :return: 是否成功移动
         """
         pass
 
@@ -150,7 +141,7 @@ class FileAPIConfig(ABC):
 
     @staticmethod
     def _path_split(path: str):
-        return path.lstrip('/').split('/')
+        return path.strip('/').split('/')
 
     @property
     @abstractmethod
@@ -175,11 +166,11 @@ class FileAPIConfig(ABC):
         pass
 
     @abstractmethod
-    def set_file(self, path: str, file: FileBase):
+    def set_file(self, path: str, file: FileBase, create_parents=False):
         pass
 
     @abstractmethod
-    def unset_file(self, path: str, file: FileBase):
+    def unset_file(self, path: str):
         pass
 
 
@@ -192,9 +183,6 @@ class FileAPIDriveBase:
         self.file_dir: pathlib.Path = pathlib.Path(file_dir)
 
 
-import inspect
-
-
 class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
     def __init__(self, repo_name: str, create_not_exist: bool, access_token: str = None):
         super().__init__(repo_name=repo_name, create_not_exist=create_not_exist)
@@ -204,7 +192,7 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
     def repo_exist(self) -> bool:
         return self.config_dir.exists() and self.file_dir.exists()
 
-    def upload_repo_file(self, path: str, file: FileStorage) -> FileSpecialInfo:
+    def upload_repo_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialInfo:
 
         file_static, io = self._upload(file)
 
@@ -221,7 +209,7 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
             file_name=file.filename,
             file_property=file_info,
             pointer=file_static['file_id']
-        ))
+        ), create_parents)
 
         return file_info
 
@@ -284,7 +272,7 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
             result = copy.deepcopy(self.locate_file(path))
             if not isinstance(result, FileBase):
                 return None
-            if result.file_type != FileType.file:
+            if result.file_type == FileType.file:
                 result.pointer = None
             return result
         except KeyError:
@@ -294,17 +282,14 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
         return self._queries(file_info['file_id'])
 
     def unlink_repo_file(self, path) -> FileId:
-        return self._set_by_path(self.mapping, path, None)
+        return self.unset_file(path)
 
-    def move_repo_file(self, old_path: str, new_path: str) -> bool:
-        try:
-            self._get_by_path(self.mapping, old_path)
-        except KeyError:
-            return Faose
-        try:
-            self._get_by_path(self.mapping, new_path)
-        except KeyError:
-            self._set_by_path(self.mapping, new_path, self._set_by_path(self.mapping, old_path, None))
+    def move_repo_file(self, source_path: str, dest_path: str) -> bool:
+        src_file = self.locate_file(source_path)
+        dest_file = self.locate_file(dest_path)
+        if src_file and not dest_file:
+            self.set_file(dest_path, copy.deepcopy(src_file))
+            self.unset_file(source_path)
             return True
         else:
             return False

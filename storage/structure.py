@@ -49,6 +49,8 @@ class FileBase:
         self.file_name: str = file_name
         self.file_type: FileType = file_type
         self.pointer: Union[FileId, "FileMapping"] = pointer
+        if isinstance(self.pointer, list):
+            self.pointer = set(self.pointer)
         self.file_property: Optional[FileSpecialInfo] = file_property
         if self.file_type != FileType.directory:
             if not file_property:
@@ -64,6 +66,8 @@ class FileBase:
         return f"[{'D' if self.file_type == FileType.directory else 'F'}] {self.file_name}"
 
     def __hash__(self):
+        if self.file_name is None or self.file_type is None:
+            return 0
         return hash(self.file_name) + hash(self.file_type)
 
 

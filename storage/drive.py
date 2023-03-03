@@ -1,7 +1,17 @@
-import copy
+import atexit
+import json
 
 from .base import *
 from .structure import *
+
+from utils.encrypt import hash_file
+
+
+def _serialize(obj):
+    if isinstance(obj, set):
+        return list(obj)
+    else:
+        return obj.__dict__
 
 
 class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
@@ -38,23 +48,46 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
     def set_folder(self, path: str, directory: Directory):
         return self.set_file(path, file=directory)
 
-    def set_file(self, path: str, file: FileBase):
+    def set_file(self, path: str, file: FileBase, create_parents=False):
         key = self._path_split(path)
         if len(key) == 1:
             self._mapping |= {file}
         else:
-            return self.set_file_subs(path, file)
+            return self.set_file_subs(path, file, create_parents)
         return key
 
-    def set_file_subs(self, path: str, file: FileBase):
-        top_place = self.locate_file(path)
-        if not top_place:
-            return None
-        place = top_place.pointer
-        place |= {file}
+    def set_file_subs(self, path: str, file: FileBase, create_parents=False):
+        def creation_locate(path: str, file: FileBase, _depth: int = 0, _loc: FileMapping = None) -> Optional[FileBase]:
+            key = self._path_split(path)
+
+            if not _loc:
+                _loc = self.mapping
+
+            for file in _loc:
+                if file.file_name != key[_depth]:
+                    continue
+                if len(key) > (_depth + 1) and file.file_type == FileType.directory:
+                    return creation_locate(path, _depth=_depth + 1, _loc=file.pointer)
+                return file
+
+            tmp_create = Directory(file_name=key[_depth], pointer=set()) if len(key) > (_depth + 1) \
+                else file
+
+            _loc |= {tmp_create}
+
+            return tmp_create
+
+        if create_parents:
+            creation_locate(path, file)
+        else:
+            top_place = self.locate_file(path)
+            if not top_place:
+                return None
+            place = top_place.pointer
+            place |= {file}
         return path
 
-    def unset_file(self, path: str, file: FileBase):
+    def unset_file(self, path: str):
         key = self._path_split(path)
         tmp = None
         for file in self.locate_file('/'.join(key[:-1])).pointer:
@@ -118,13 +151,14 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         self._config: dict
         self._config['mapping'] = list(self._config['mapping'])
         with self.config_dir.open('w', encoding='UTF-8') as file:
-            json.dump(self._config, file, default=lambda obj: obj.__dict__, ensure_ascii=False, indent=4)
+            json.dump(self._config, file, default=_serialize, ensure_ascii=False, indent=4)
 
+    # noinspection PyTypedDict
     def save_storage(self):
         config_copied = copy.deepcopy(self._config)
         config_copied['mapping'] = list(config_copied['mapping'])
         with self.config_dir.open('w', encoding='UTF-8') as file:
-            json.dump(config, file, default=lambda obj: obj.__dict__, ensure_ascii=False, indent=4)
+            json.dump(config_copied, file, default=lambda obj: obj.__dict__, ensure_ascii=False, indent=4)
 
     @property
     def repo_name(self) -> str:
@@ -166,7 +200,7 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
         file_hash = hash_file(byte_file)
         if not (self.file_dir / file_hash).exists():
             with (self.file_dir / file_hash).open('wb') as file:
-                file.write(data)
+                file.write(byte_file)
 
         file_info: FileStaticInfo = {
             "file_id": file_hash,

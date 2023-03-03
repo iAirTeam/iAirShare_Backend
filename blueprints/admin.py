@@ -1,17 +1,24 @@
 from http import HTTPStatus
 
 from flask import Blueprint, request, send_file
+from itsdangerous import Serializer, TimedSerializer
 
 from storage import FileAPIPublic, FileAPIPrivate, FileType, Directory
 from utils import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
 
-bp = Blueprint("file", __name__, url_prefix='/api/file')
-public_repo = FileAPIPublic()
+
+class AdminFileAPI(FileAPIPrivate):
+    def __init__(self, repo_id: str, create_not_exist=False):
+        super().__init__(create_not_exist=create_not_exist, repo_name=repo_id)
+
+    def can_access_repo(self, access_token) -> bool:
+        return True
 
 
-def file_iter(req_repo, count: int, path: str, d_next):
-    if count > 20:
-        count = 20
+def admin_iter(req_repo: AdminFileAPI, count: int, path: str, d_next):
+    if count > 30:
+        count = 30
+
     first, total, d_next = req_repo.next_repo_dir(path, d_next=d_next)
     result = {"total": total, 'next': 0, 'files': [first]}
 
@@ -31,41 +38,20 @@ def file_iter(req_repo, count: int, path: str, d_next):
     return result
 
 
-@bp.route('/<repo>/_list', methods=['GET', 'POST'])
-def get_file_list(repo='public'):
-    req_repo = public_repo
-    if repo != 'public':
-        token = request.values.get('token', '')
-        req_repo = FileAPIPrivate(repo, token)
-        if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(_status=404, status=400, message='repo not exist or access denied')
-
-    count = request.values.get('count', 0)
-    d_next = request.values.get('next', 0)
-    try:
-        count = int(count)
-        d_next = int(d_next)
-    except ValueError:
-        return kw_gen(status=400, message='bad argument')
-    result = file_iter(req_repo, count, '/', d_next)
-
-    return kw_gen(status=200, data=result)
+bp = Blueprint("file", __name__, url_prefix='/api/admin')
 
 
-# noinspection PyProtectedMember
-@bp.route('/<repo>/', methods=['GET', 'PUT', 'POST'])
-@bp.route('/<repo>', methods=['GET', 'PUT', 'POST'])
-def files_operation(repo='public'):
-    req_repo = public_repo
-    if repo != 'public':
-        token = request.values.get('token', '')
-        req_repo = FileAPIPrivate(repo, token)
-        if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg='repo not exist or access denied')
+# noinspection DuplicatedCode
+@bp.route('/access/<repo>', methods=['GET', 'PUT', 'POST'])
+@bp.route('/access/<repo>/', methods=['GET', 'PUT', 'POST'])
+def admin_access(repo: str = 'public'):
+    req_repo = AdminFileAPI(repo)
+    if req_repo.repo_exist:
+        return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg='repo doesnt not exist')
 
     match request.method:
         case "GET":
-            file_name = request.values.get('file_name', None)
+            filename = request.values.get('filename', None)
             count = request.values.get('count', 0)
             d_next = request.values.get('next', 0)
             try:
@@ -74,27 +60,23 @@ def files_operation(repo='public'):
             except ValueError:
                 return kw_gen(status=400, msg='bad argument')
 
-            if not file_name:
-                result = file_iter(req_repo, count, '/', d_next)
+            if not filename:
+                result = admin_iter(req_repo, count, '/', d_next)
 
                 return kw_gen(status=200, data=result)
-            else:
-                # TODO: Get File here, but not now!
-                return kw_gen(_status=HTTPStatus.NOT_IMPLEMENTED, status=400,
-                              msg="I don't want to make it work! :(")
 
         case "PUT" | "POST":
             files = request.files.getlist('file')
             file_type = request.values.get('type', FileType.file)
-            file_name = request.values.get('file_name', None)
-            if not files and file_type == FileType.file and request.method == 'POST':
+            filename = request.values.get('filename', None)
+            if not files and request.method == 'POST':
                 return dict_gen({
                     "repo_name": req_repo.repo_name
                 })
             elif not files and file_type == FileType.file:
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400, msg="no file selected")
-            elif file_type == FileType.directory and file_name is not None:
-                req_repo.set_file('/', Directory(file_name=file_name))
+            elif file_type == FileType.file and filename is not None:
+                req_repo.set_file('/', Directory(file_name=filename))
                 return kw_gen(_status=HTTPStatus.CREATED)
 
             for file in files:
@@ -103,15 +85,12 @@ def files_operation(repo='public'):
             return kw_gen(_status=HTTPStatus.CREATED)
 
 
-# noinspection PyProtectedMember
-@bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE', 'POST'])
+# noinspection DuplicatedCode
+@bp.route('/<repo>/<path:_>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def file_operation(repo='public', _=None):
-    req_repo = public_repo
-    if repo != 'public':
-        token = request.values.get('token', '')
-        req_repo = FileAPIPrivate(repo, token)
-        if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            return kw_gen(status=400, msg='repo not exist or access denied')
+    req_repo = AdminFileAPI(repo)
+    if req_repo.repo_exist:
+        return kw_gen(status=400, msg='repo doesnt not exist')
 
     storage_path = request.full_path \
         .removeprefix(f'{bp.url_prefix}/{repo}/') \
@@ -137,7 +116,7 @@ def file_operation(repo='public', _=None):
                 return kw_gen(status=404, msg='file not found')
 
             if file_info.file_type == FileType.directory:
-                result = file_iter(req_repo, count, storage_path, d_next)
+                result = admin_iter(req_repo, count, storage_path, d_next)
 
                 return kw_gen(status=200, data=result)
 
@@ -148,26 +127,11 @@ def file_operation(repo='public', _=None):
             )
         case 'PUT' | 'POST':
             files = request.files.getlist('file')
-            file_type = request.values.get('type', FileType.file)
-            file_name = request.values.get('file_name')
+            if not files:
+                return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400)
 
-            if file_type == FileType.file:
-                if not files:
-                    return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400)
-
-                for file in files:
-                    req_repo.upload_repo_file(storage_path, file)
-            else:
-                return kw_gen(
-                    _status=HTTPStatus.CREATED,
-                    place=req_repo.set_file(
-                        storage_path,
-                        Directory(
-                            file_name=file_name,
-                            pointer=set()
-                        )
-                    )
-                )
+            for file in files:
+                req_repo.upload_repo_file(storage_path, file)
 
             return kw_gen(_status=HTTPStatus.CREATED)
         case 'DELETE':
