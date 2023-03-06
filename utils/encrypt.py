@@ -3,8 +3,7 @@ from __future__ import annotations
 import hashlib
 from array import array
 from mmap import mmap
-from config import SECRET_KEY
-
+from storage.shared import SECRET_KEY
 
 def custom_hash(data: bytes | bytearray | memoryview | array | mmap) -> bytes:
     return hashlib.sha384(data).digest() + hashlib.sha256(data).digest()

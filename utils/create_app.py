@@ -4,6 +4,8 @@ from flask import Flask
 from flask_cors import CORS
 
 import config
+import storage.integrated
+from storage import integrated
 from blueprints import file_bp, root_bp
 
 
@@ -16,9 +18,10 @@ def create_app():
     CORS(app, methods=['GET', 'PUT', 'DEL', 'POST'],
          supports_credentials=True)
 
-    config.SQLALCHEMY_INSTANCE.init_app(app)
-
     app.register_blueprint(file_bp)
     app.register_blueprint(root_bp)
+
+    storage.integrated.setup_db_app(app)
+    config.APP_APP = app
 
     return app
