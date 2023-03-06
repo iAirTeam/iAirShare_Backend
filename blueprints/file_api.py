@@ -31,9 +31,13 @@ def file_iter(req_repo, count: int, path: str, d_next):
     return result
 
 
-@bp.route('/<repo>/', methods=['GET', 'PUT', 'DELETE'])
+@bp.route('/<repo>/', methods=['GET', 'PUT'])
 @bp.route('/<repo>', methods=['GET', 'PUT'])
 def files_operation(repo='public'):
+    storage_path = request.full_path \
+        .removeprefix(f'{bp.url_prefix}/{repo}') \
+        .removesuffix('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
+
     req_repo = public_repo
     if repo != 'public':
         token = request.values.get('token', '')
@@ -44,6 +48,11 @@ def files_operation(repo='public'):
 
     match request.method:
         case "GET":
+            if not storage_path.endswith('/'):
+                return dict_gen({
+                    "repo_name": req_repo.repo_name
+                })
+
             count = request.values.get('count', 0)
             d_next = request.values.get('next', 0)
             try:
@@ -57,7 +66,7 @@ def files_operation(repo='public'):
             return kw_gen(status=200, data=result)
 
         case "PUT":
-            if not request.base_url.endswith('/'):
+            if not storage_path.endswith('/'):
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
                               msg="Unable to put a file to root")
 
