@@ -36,7 +36,7 @@ class FileAPITest(unittest.TestCase):
         self.assertEqual(response.data.decode('UTF-8'), 'Hello world')
 
     def test_list_dir_public(self):
-        response = self.app.get('/api/file/public')
+        response = self.app.get('/api/file/public/')
 
         d_next = response.json['data']['next']
 
@@ -44,7 +44,7 @@ class FileAPITest(unittest.TestCase):
             self.assertNotEqual(d_next, -114514, 'Something went wrong!')
 
         while d_next > 0:
-            response = self.app.get(f'/api/file/public?next={d_next}')
+            response = self.app.get(f'/api/file/public/?next={d_next}')
 
             d_next = response.json['data']['next']
 
