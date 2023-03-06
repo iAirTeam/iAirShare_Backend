@@ -6,7 +6,7 @@ from flask_cors import CORS
 import config
 import storage.integrated
 from storage import integrated
-from blueprints import file_bp, root_bp
+from blueprints import *
 
 
 def create_app():

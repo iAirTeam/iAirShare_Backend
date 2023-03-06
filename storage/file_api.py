@@ -1,7 +1,6 @@
 from . import integrated
 from .drive import *
 
-
 class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
     public_instance: "FileAPIPublic" = None
 
@@ -23,9 +22,18 @@ class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
 
 
 class FileAPIPrivate(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
-    def __init__(self, repo_id: str, access_token: str = '', create_not_exist=False):
-        super().__init__(create_not_exist=create_not_exist, repo_name=repo_id)
+    def __init__(self, repo_name: str, access_token: str = '', create_not_exist=False):
+        super().__init__(create_not_exist=create_not_exist, repo_name=repo_name)
         self.access_token = access_token
 
     def can_access_repo(self, access_token) -> bool:
         return access_token == self._config['access_token']
+
+
+class AdminFileAPI(FileAPIPrivate):
+    def __init__(self, repo_id: str, token='', create_not_exist=False):
+        super().__init__(create_not_exist=create_not_exist, repo_name=repo_id)
+        self.access_token = token
+
+    def can_access_repo(self, access_token) -> bool:
+        return integrated.verify_admin_code(access_token)

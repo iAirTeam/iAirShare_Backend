@@ -50,7 +50,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
 
     def set_file(self, path: str, file: FileBase, create_parents=False):
         key = self._path_split(path)
-        if len(key) == 1:
+        if len(key) == 1 and not key[0]:
             self._mapping |= {file}
         else:
             return self.set_file_subs(path, file, create_parents)

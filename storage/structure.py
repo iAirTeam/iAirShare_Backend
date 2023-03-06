@@ -50,7 +50,10 @@ class FileBase:
         self.file_type: FileType = file_type
         self.pointer: Union[FileId, "FileMapping"] = pointer
         if isinstance(self.pointer, list):
-            self.pointer = set(self.pointer)
+            proc: FileMapping = set()
+            for file in self.pointer:
+                proc |= {FileBase(**file)}
+            self.pointer = proc
         self.file_property: Optional[FileSpecialInfo] = file_property
         if self.file_type != FileType.directory:
             if not file_property:

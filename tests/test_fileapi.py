@@ -17,8 +17,8 @@ class FileAPITestCase(unittest.TestCase):
         self.assertIsNotNone(self.file.file_property)
 
     def test_set_file(self):
-        result = self.repo.set_file('/test', self.file)
-        self.assertEqual(result, ['test'])
+        result = self.repo.set_file('/', self.file)
+        self.assertEqual(result, [''])
 
     def test_set_file_not_exist(self):
         result = self.repo.set_file('/bad_dir/bad_f', self.file)

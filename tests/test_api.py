@@ -10,7 +10,7 @@ class FileAPITest(unittest.TestCase):
     def test_a_upload_public(self):
         data = {'file': (BytesIO(b'Hello world'), 'test_file')}
 
-        response = self.app.put('/api/file/public', data=data)
+        response = self.app.put('/api/file/public/', data=data)
 
         self.assertEqual(response.status_code, 201, "Bad Status Code")
 
@@ -23,12 +23,9 @@ class FileAPITest(unittest.TestCase):
     def test_aa_upload2_public(self):
         data = {'file': (BytesIO(b'Hello world'), 'test_file_in_dir')}
 
-        resp = self.app.post('/api/file/public/', data={
-            'type': 'directory',
-            'file_name': 'dir1'
-        })
+        response = self.app.put('/api/file/public/dir1/')
 
-        response = self.app.put('/api/file/public/dir1', data=data)
+        response = self.app.put('/api/file/public/dir1/', data=data)
 
         self.assertEqual(response.status_code, 201, "Bad Status Code")
 
