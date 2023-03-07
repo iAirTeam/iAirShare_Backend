@@ -132,10 +132,10 @@ class FileAPIStorage(ABC):
 # noinspection PyUnusedLocal
 @match_class_typing
 class FileAPIConfig(ABC):
-    def __init__(self, repo_name: str, create_not_exist: bool):
+    def __init__(self, repo_id: str, create_not_exist: bool):
         """
         :param create_not_exist: 当不存在时创建
-        :param repo_name: 存储库名称
+        :param repo_id: 存储库Id
         """
         pass
 
@@ -184,8 +184,8 @@ class FileAPIDriveBase:
 
 
 class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
-    def __init__(self, repo_name: str, create_not_exist: bool, access_token: str = None):
-        super().__init__(repo_name=repo_name, create_not_exist=create_not_exist)
+    def __init__(self, repo_id: str, create_not_exist: bool, access_token: str = None):
+        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
         self.access_token = access_token
 
     @property

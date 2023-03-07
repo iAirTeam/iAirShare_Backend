@@ -12,7 +12,7 @@ class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
         return cls.public_instance
 
     def __init__(self):
-        super().__init__(repo_name='Public', create_not_exist=True)
+        super().__init__(repo_id='public', create_not_exist=True)
 
     def can_access_repo(self, access_token) -> bool:
         return True
@@ -22,8 +22,8 @@ class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
 
 
 class FileAPIPrivate(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
-    def __init__(self, repo_name: str, access_token: str = '', create_not_exist=False):
-        super().__init__(create_not_exist=create_not_exist, repo_name=repo_name)
+    def __init__(self, repo_id: str, access_token: str = '', create_not_exist=False):
+        super().__init__(create_not_exist=create_not_exist, repo_id=repo_id)
         self.access_token = access_token
 
     def can_access_repo(self, access_token) -> bool:

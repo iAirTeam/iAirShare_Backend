@@ -96,17 +96,17 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
                 del file
         return tmp
 
-    def __init__(self, repo_name: str, create_not_exist=True):
-        super().__init__(repo_name=repo_name, create_not_exist=create_not_exist)
+    def __init__(self, repo_id: str, create_not_exist):
+        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
 
         self._config: RepoConfigAccessStructureRaw = {
-            "repo_name": repo_name,
+            "repo_name": repo_id,
             "mapping": [],
             "permission_nodes": {},
             "access_token": ""
         }
 
-        config_dir = self.base_dir / f"{repo_name.lower() + '_' if repo_name else ''}config.json"
+        config_dir = self.base_dir / f"{repo_id + '_' if repo_id else ''}config.json"
 
         if not config_dir.exists() and create_not_exist:
             with config_dir.open('w') as file:
@@ -174,7 +174,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
 
 
 class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
-    def __init__(self, repo_name: str, create_not_exist=True):
+    def __init__(self, repo_id: str, create_not_exist=True):
         super().__init__()
 
         self.access_token: Optional[str] = None
