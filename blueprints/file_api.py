@@ -4,16 +4,19 @@ from flask import Blueprint, request, send_file
 
 from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType, Directory
 from utils import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
+from config import logger
 
 bp = Blueprint("file", __name__, url_prefix='/api/file')
 public_repo = FileAPIPublic()
 
 
 def file_iter(req_repo, count: int, path: str, d_next):
+    logger.debug(f"[File Iter] Iterating (iter_id:{d_next}) at {path} in {req_repo.repo_name}")
     if count > 20:
         count = 20
     first, total, d_next = req_repo.next_repo_dir(path, d_next=d_next)
     result = {"total": total, 'next': 0, 'files': [first]}
+    logger.debug(f"[File Iter] Total: {total} Element {first}")
 
     for _ in range(count):
         if d_next == 0:
@@ -25,6 +28,8 @@ def file_iter(req_repo, count: int, path: str, d_next):
             break
         result['total'] = total
         result['files'].append(val)
+
+    logger.debug(f"[File Iter] Iter Complete with iter_id: ({d_next})")
 
     result['next'] = d_next
 
@@ -43,12 +48,17 @@ def files_operation(repo='public'):
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
+            logger.debug(f"Requested Repo {repo} \n"
+                         f"E:{req_repo.repo_exist} A:{req_repo.can_access_repo(token)}")
             return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400,
                           msg="Requested Repo does not exist or Access Denied.")
+
+    logger.info(f"Requested (/) in Repo {req_repo.repo_name}({repo}) with tok:{request.values.get('token', '')}")
 
     match request.method:
         case "GET":
             if not storage_path.endswith('/'):
+                logger.debug(f"Fetch Repo Info for {req_repo.repo_name}({repo})")
                 return dict_gen({
                     "repo_name": req_repo.repo_name
                 })
@@ -59,9 +69,12 @@ def files_operation(repo='public'):
                 count = int(count)
                 d_next = int(d_next)
             except ValueError:
+                logger.debug(f"Cannot parse count:{count} next:{d_next}")
                 return kw_gen(status=400, msg='Invalid count or next')
 
             result = file_iter(req_repo, count, '/', d_next)
+
+            logger.debug(f"Result: len:{len(result)}")
 
             return kw_gen(status=200, data=result)
 
@@ -115,8 +128,13 @@ def file_operation(repo='public', _=None):
         token = request.values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
+            logger.debug(f"Requested Repo {repo} \n"
+                         f"E:{req_repo.repo_exist} A:{req_repo.can_access_repo(token)}")
             return kw_gen(status=400,
                           msg="Requested Repo does not Exist or Access Denied")
+
+    logger.info(
+        f"Requested ({storage_path}) in Repo {req_repo.repo_name}({repo}) with tok:{request.values.get('token', '')}")
 
     if not storage_path:
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg="Invalid Storage Path")
@@ -130,6 +148,9 @@ def file_operation(repo='public', _=None):
                               msg='Unable to locate file')
 
             is_dir = storage_path.endswith('/')
+
+            logger.debug(f"Requested {file_info} at {storage_path} "
+                         f"req is_dir:{is_dir}")
 
             if not is_dir:
                 if file_info.file_type != FileType.file:

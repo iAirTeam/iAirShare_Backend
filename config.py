@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask
+from loguru import logger
 
 import storage.shared as shared
 
