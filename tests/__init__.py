@@ -10,5 +10,5 @@ if __name__ == '__main__':
 
     unittest.main()
 
-access = AdminFileAPI(repo_id='tests', token=ADMIN_CODE)
+access = AdminFileAPI(repo_id='tests', token=ADMIN_CODE, create_not_exist=True)
 access.config['mapping'].clear()
