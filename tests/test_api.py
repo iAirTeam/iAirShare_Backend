@@ -3,7 +3,7 @@ from http import HTTPStatus
 from io import BytesIO
 
 from app import app
-from storage import AdminFileAPI
+from storage import AdminFileAPI, FileMapping
 from config import ADMIN_CODE
 
 
@@ -32,7 +32,7 @@ class FileAPITest(unittest.TestCase):
 
         self.assertEqual(resp.data, b'test_01')
 
-    def test_02_dir1(self):
+    def test_01_3_dir1(self):
         response = self.app.get('/api/file/tests/')
 
         d_next = response.json['data']['next']
@@ -48,8 +48,27 @@ class FileAPITest(unittest.TestCase):
         self.assertNotEqual(response.json['data']['next'], -114514, 'Something went wrong!')
         self.assertEqual(response.json['data']['next'], 0, "Invalid next value")
 
-    def test_02_dir2(self):
-        response = self.app.get('/api/file/tests/')
+    def test_02_01_create_dir(self):
+        resp = self.app.put('/api/file/tests/test_02/')
+
+        self.assertEqual(resp.content_type, 'application/json', 'Bad Content-Type')
+        self.assertEqual(resp.json['status'], 200, resp.json['msg'])
+        self.assertEqual(resp.status_code, HTTPStatus.CREATED)
+
+    def test_02_02_upload_to_dir(self):
+        data = {'file': (BytesIO(b"test_02_2"), 'test_02_2')}
+
+        resp = self.app.put('/api/file/tests/test_02/')
+
+        self.assertEqual(resp.content_type, 'application/json', 'Bad Content-Type')
+        self.assertEqual(resp.json['status'], 200, resp.json['msg'])
+        self.assertEqual(resp.status_code, HTTPStatus.CREATED)
+
+    @unittest.skip("Not Implement")
+    def test_02_03_dir(self):
+        response = self.app.get('/api/file/tests/test_02/')
+
+        lst: FileMapping = [*response.json['data']['files']]
 
         d_next = response.json['data']['next']
 
@@ -57,12 +76,15 @@ class FileAPITest(unittest.TestCase):
             self.assertNotEqual(d_next, -114514, 'Something went wrong!')
 
         while d_next > 0:
-            response = self.app.get(f'/api/file/public/?next={d_next}')
+            lst.append(*response.json['data']['files'])
+
+            response = self.app.get(f'/api/file/tests/test_02/?next={d_next}')
 
             d_next = response.json['data']['next']
 
-        self.assertNotEqual(response.json['data']['next'], -114514, 'Something went wrong!')
+        self.assertNotEqual(response.json['data']['next'], -114514, 'Something went wrong with next!')
         self.assertEqual(response.json['data']['next'], 0, "Invalid next value")
+        self.assertIn('test_02_02', lst)
 
 
 if __name__ == '__main__':
