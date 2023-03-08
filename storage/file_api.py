@@ -32,7 +32,7 @@ class FileAPIPrivate(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
 
 class AdminFileAPI(FileAPIPrivate):
     def __init__(self, repo_id: str, token='', create_not_exist=False):
-        super().__init__(create_not_exist=create_not_exist, repo_name=repo_id)
+        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
         self.access_token = token
 
     def can_access_repo(self, access_token) -> bool:

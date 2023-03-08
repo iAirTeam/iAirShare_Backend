@@ -6,15 +6,38 @@ from .structure import *
 
 from utils.encrypt import hash_file
 
+repo_storage: "FileAPIConfig" = {}
+
 
 def _serialize(obj):
     if isinstance(obj, set):
+        return frozenset(obj)
+    elif isinstance(obj, frozenset):
+        return list(obj)
+    elif isinstance(obj, tuple):
         return list(obj)
     else:
         return obj.__dict__
 
 
 class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
+
+    # noinspection PyProtectedMember
+    def __new__(cls, *args, **kwargs):
+        kw_repo = kwargs.get('repo_id', None)
+        repo_id = args[0] if len(args) >= 1 else kw_repo
+        if repo_id in repo_storage:
+            old_obj = repo_storage[repo_id]
+            new_obj = super().__new__(cls)
+            new_obj._config = old_obj._config
+            return new_obj
+        elif not repo_id:
+            return super().__new__(cls)
+        else:
+            obj = super().__new__(cls)
+            repo_storage.update({repo_id: obj})
+            return obj
+
     def locate_file(self, path: str, _depth: int = 0, _loc: FileMapping = None) -> Optional[FileBase]:
         key = self._path_split(path)
 
@@ -97,14 +120,18 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         return tmp
 
     def __init__(self, repo_id: str, create_not_exist):
-        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
+        _pre_inited = True
 
-        self._config: RepoConfigAccessStructureRaw = {
-            "repo_name": repo_id,
-            "mapping": [],
-            "permission_nodes": {},
-            "access_token": ""
-        }
+        if not hasattr(self, '_config'):
+            _pre_inited = False
+            self._config: RepoConfigAccessStructureRaw = {
+                "repo_name": repo_id,
+                "mapping": [],
+                "permission_nodes": {},
+                "access_token": ""
+            }
+
+        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
 
         config_dir = self.base_dir / f"{repo_id + '_' if repo_id else ''}config.json"
 
@@ -115,7 +142,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
             config_dir.unlink(missing_ok=True)
             with config_dir.open('w') as file:
                 json.dump(self.config, file)
-        else:
+        elif not _pre_inited:
             try:
                 with config_dir.open('r+', encoding='UTF-8') as file:
                     try:
@@ -125,7 +152,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
             except FileNotFoundError:
                 pass
 
-        if config_dir.exists():
+        if not _pre_inited and config_dir.exists() and create_not_exist:
             atexit.register(self._save_storage)
 
         self.config_dir = config_dir
@@ -133,32 +160,29 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         new_mapping = set()
 
         for item in self._config['mapping']:
-            new_mapping |= {FileBase(**item)}
+            if not isinstance(item, FileBase):
+                item = FileBase(**item)
+            new_mapping |= {item}
 
         self.config['mapping'] = new_mapping
 
         self._mapping = self.config['mapping']
-
-    def __del__(self):
-        atexit.unregister(self._save_storage)
-        self._save_storage()
 
     def _save_storage(self):
         """
         自动保存函数 (Use save_storage instead, should not be called manually)
         :return: None
         """
-        self._config: dict
-        self._config['mapping'] = list(self._config['mapping'])
         with self.config_dir.open('w', encoding='UTF-8') as file:
             json.dump(self._config, file, default=_serialize, ensure_ascii=False, indent=4)
 
+    def __del__(self):
+        atexit.unregister(self._save_storage)
+        self._save_storage()
+
     # noinspection PyTypedDict
     def save_storage(self):
-        config_copied = copy.deepcopy(self._config)
-        config_copied['mapping'] = list(config_copied['mapping'])
-        with self.config_dir.open('w', encoding='UTF-8') as file:
-            json.dump(config_copied, file, default=lambda obj: obj.__dict__, ensure_ascii=False, indent=4)
+        self._save_storage()
 
     @property
     def repo_name(self) -> str:

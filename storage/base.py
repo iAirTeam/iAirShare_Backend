@@ -61,6 +61,11 @@ class FileAPIImpl(ABC):
         """
         pass
 
+    @staticmethod
+    @abstractmethod
+    def get_file(file_info: Optional[FileStaticInfo] | str):
+        pass
+
     @abstractmethod
     def unlink_repo_file(self, path: str) -> bool:
         """
@@ -130,8 +135,8 @@ class FileAPIStorage(ABC):
 
 
 # noinspection PyUnusedLocal
-@match_class_typing
 class FileAPIConfig(ABC):
+
     def __init__(self, repo_id: str, create_not_exist: bool):
         """
         :param create_not_exist: 当不存在时创建
