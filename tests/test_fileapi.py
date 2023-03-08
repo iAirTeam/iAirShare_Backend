@@ -7,11 +7,11 @@ class FileAPITestCase(unittest.TestCase):
         self.repo = FileAPIPrivate('tests', create_not_exist=True)
         self.file = File(file_name='foo', pointer='2333')
 
-    def test_aa_init_repo(self):
+    def test_02_init_repo(self):
         self.assertTrue(self.repo.repo_exist)
         self.assertEqual(self.repo.repo_name, 'tests')
 
-    def test_bb_init_file(self):
+    def test_03_init_file(self):
         self.assertEqual(self.file.file_name, 'foo')
         self.assertEqual(self.file.pointer, '2333')
         self.assertIsNotNone(self.file.file_property)
