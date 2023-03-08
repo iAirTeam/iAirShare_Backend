@@ -121,7 +121,7 @@ class FileStaticProperty(TypedDict, total=False):
     prop_ver: int
 
 
-FileMapping = Set[FileBase]
+FileMapping = Set[FileBase] | List[FileBase]
 
 
 @match_class_typing
