@@ -18,4 +18,4 @@ def index():
 
 @bp.route('/robots.txt')
 def robots():
-    return send_file("")
+    return send_file('')
