@@ -186,6 +186,9 @@ def file_operation(repo='public', _=None):
                               msg="Unable to put File(s) into a FILE")
 
             if files:
+                if len(files) == 0:
+                    return kw_gen(_status=HTTPStatus.ACCEPTED, code=202,
+                                  msg="Notice: No File Selected!")
                 for file in files:
                     req_repo.upload_repo_file(storage_path, file)
 

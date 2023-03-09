@@ -58,13 +58,13 @@ class FileAPITest(unittest.TestCase):
     def test_02_02_upload_to_dir(self):
         data = {'file': (BytesIO(b"test_02_2"), 'test_02_2')}
 
-        resp = self.app.put('/api/file/tests/test_02/')
+        resp = self.app.put('/api/file/tests/test_02/', data=data)
 
         self.assertEqual(resp.content_type, 'application/json', 'Bad Content-Type')
         self.assertEqual(resp.json['status'], 200, resp.json['msg'])
         self.assertEqual(resp.status_code, HTTPStatus.CREATED)
 
-    @unittest.skip("Not Implement")
+    # @unittest.skip("Not Implement")
     def test_02_03_dir(self):
         response = self.app.get('/api/file/tests/test_02/')
 
@@ -84,7 +84,7 @@ class FileAPITest(unittest.TestCase):
 
         self.assertNotEqual(response.json['data']['next'], -114514, 'Something went wrong with next!')
         self.assertEqual(response.json['data']['next'], 0, "Invalid next value")
-        self.assertIn('test_02_02', lst)
+        self.assertIn('test_02_2', tuple(map(lambda x: x['file_name'], lst)))
 
 
 if __name__ == '__main__':
