@@ -175,6 +175,8 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         自动保存函数 (Use save_storage instead, should not be called manually)
         :return: None
         """
+        if not self.config_dir.exists():
+            return
         with self.config_dir.open('w', encoding='UTF-8') as file:
             json.dump(self._config, file, default=_serialize, ensure_ascii=False, indent=4)
 
