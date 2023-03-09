@@ -6,7 +6,7 @@ from .structure import *
 
 from utils.encrypt import hash_file
 
-repo_storage: "FileAPIConfig" = {}
+repo_storage: dict["FileAPIConfig"] = {}
 
 
 def _serialize(obj):
@@ -72,6 +72,8 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         return self.set_file(path, file=directory)
 
     def set_file(self, path: str, file: FileBase, create_parents=False):
+        if not file:
+            raise InvalidFile
         key = self._path_split(path)
         if len(key) == 1 and not key[0]:
             self._mapping |= {file}

@@ -1,6 +1,8 @@
 import unittest
-from app import app
 import json
+
+from app import app
+from config import SERVER_NAME
 
 
 class RootTest(unittest.TestCase):
@@ -12,7 +14,7 @@ class RootTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data), {
-            "name": "AirShare",
+            "name": SERVER_NAME,
             "versionCode": 'alpha',
             "version": -3,
         })

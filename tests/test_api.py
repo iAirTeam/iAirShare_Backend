@@ -64,7 +64,6 @@ class FileAPITest(unittest.TestCase):
         self.assertEqual(resp.json['status'], 200, resp.json['msg'])
         self.assertEqual(resp.status_code, HTTPStatus.CREATED)
 
-    # @unittest.skip("Not Implement")
     def test_02_03_dir(self):
         response = self.app.get('/api/file/tests/test_02/')
 

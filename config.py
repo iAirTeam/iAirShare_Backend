@@ -6,6 +6,7 @@ from loguru import logger
 
 import storage.shared as shared
 
+SERVER_NAME = "AirShare"
 HOST = "0.0.0.0"
 PORT = 10000
 DEBUG = True
