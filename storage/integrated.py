@@ -1,11 +1,11 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from quart import Quart
+from quart_sqlalchemy import SQLAlchemy
 
 import storage.shared as shared
 import config
 
 
-def setup_db_app(app: Flask):
+def setup_db_app(app: Quart):
     shared.app = app
     if shared.sqlalchemy is None:
         shared.sqlalchemy = SQLAlchemy(app)
@@ -13,8 +13,8 @@ def setup_db_app(app: Flask):
         shared.sqlalchemy.init_app(app)
 
 
-def set_db(sqlal: SQLAlchemy):
-    shared.sqlalchemy = sqlal
+def set_db(sqlalchemy: SQLAlchemy):
+    shared.sqlalchemy = sqlalchemy
 
 
 def verify_admin_code(code: str):

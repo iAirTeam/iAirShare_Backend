@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from flask import Blueprint, request, send_file
+from quart import Blueprint, request, send_file
 
 from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType, Directory
 from utils import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
@@ -37,23 +37,26 @@ def file_iter(req_repo, count: int, path: str, d_next):
 
 
 @bp.route('/<repo>/', methods=['GET', 'PUT'])
-@bp.route('/<repo>', methods=['GET', 'PUT'])
-def files_operation(repo='public'):
+@bp.route('/<repo>', methods=['GET'])
+async def files_operation(repo='public'):
+    values = await request.values
+
     storage_path = request.full_path \
         .removeprefix(f'{bp.url_prefix}/{repo}') \
         .removesuffix('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
 
     req_repo = public_repo
     if repo != 'public':
-        token = request.values.get('token', '')
-        req_repo = FileAPIPrivate(repo, token)
+        create = bool(values.get('create', False))
+        token = values.get('token', '')
+        req_repo = FileAPIPrivate(repo, token, create_not_exist=create)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
             logger.debug(f"Requested Repo {repo} \n"
                          f"E:{req_repo.repo_exist} A:{req_repo.can_access_repo(token)}")
             return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400,
                           msg="Requested Repo does not exist or Access Denied.")
 
-    logger.info(f"Requested (/) in Repo {req_repo.repo_name}({repo}) with tok:{request.values.get('token', '')}")
+    logger.info(f"Requested (/) in Repo {req_repo.repo_name}({repo}) with tok:{values.get('token', '')}")
 
     match request.method:
         case "GET":
@@ -63,8 +66,8 @@ def files_operation(repo='public'):
                     "repo_name": req_repo.repo_name
                 })
 
-            count = request.values.get('count', 0)
-            d_next = request.values.get('next', 0)
+            count = values.get('count', 0)
+            d_next = values.get('next', 0)
             try:
                 count = int(count)
                 d_next = int(d_next)
@@ -101,14 +104,16 @@ def files_operation(repo='public'):
 
 
 @bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
-def file_operation(repo='public', _=None):
+async def file_operation(repo='public', _=None):
+    values = await request.values
+
     storage_path = request.full_path \
         .removeprefix(f'{bp.url_prefix}/{repo}/') \
         .removesuffix('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
 
     req_repo = public_repo
     if repo == 'admin':
-        token = request.values.get('token', '')
+        token = values.get('token', '')
         path_list = storage_path.removesuffix('/').split('/')
 
         access_repo = path_list[0]
@@ -125,7 +130,7 @@ def file_operation(repo='public', _=None):
             return kw_gen(status=400,
                           msg="Requested Repo Access Denied or repo does not Exist")
     elif repo != 'public':
-        token = request.values.get('token', '')
+        token = values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
         if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
             logger.debug(f"Requested Repo {repo} \n"
@@ -134,7 +139,7 @@ def file_operation(repo='public', _=None):
                           msg="Requested Repo does not Exist or Access Denied")
 
     logger.info(
-        f"Requested ({storage_path}) in Repo {req_repo.repo_name}({repo}) with tok:{request.values.get('token', '')}")
+        f"Requested ({storage_path}) in Repo {req_repo.repo_name}({repo}) with tok:{values.get('token', '')}")
 
     if not storage_path:
         return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400, msg="Invalid Storage Path")
@@ -165,8 +170,8 @@ def file_operation(repo='public', _=None):
                     last_modified=file_info.file_property['last_update'],
                 )
 
-            count = request.values.get('count', 0)
-            d_next = request.values.get('next', 0)
+            count = values.get('count', 0)
+            d_next = values.get('next', 0)
 
             try:
                 count = int(count)

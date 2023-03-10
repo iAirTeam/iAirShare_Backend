@@ -1,8 +1,8 @@
-from flask import Blueprint, send_file, url_for
+from quart import Blueprint, send_file, url_for
 
 from utils import gen_json_response
 
-from config import SERVER_NAME
+from config import AIRSHARE_BACKEND_NAME
 
 bp = Blueprint("root", __name__)
 
@@ -10,7 +10,7 @@ bp = Blueprint("root", __name__)
 @bp.route('/')
 def index():
     return gen_json_response({
-        "name": SERVER_NAME,
+        "name": AIRSHARE_BACKEND_NAME,
         "versionCode": 'alpha',
         "version": -3,
     })
