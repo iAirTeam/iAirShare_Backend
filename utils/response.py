@@ -1,5 +1,5 @@
 from copy import deepcopy
-from flask import Response
+from quart import Response
 from http import HTTPStatus
 import json
 
