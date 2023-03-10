@@ -1,4 +1,4 @@
-from flask_sqlalchemy.extension import sa
+import sqlalchemy as sa
 
 from storage.integrated.shared import sqlalchemy
 
