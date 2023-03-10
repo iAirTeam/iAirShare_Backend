@@ -1,10 +1,10 @@
 from typing import Optional
 
-from flask_sqlalchemy import SQLAlchemy
-from flask import Flask
+from quart_sqlalchemy import SQLAlchemy
+from quart import Quart
 
 SECRET_KEY: str = 'AirShare'
 
 sqlalchemy: Optional[SQLAlchemy] = None
 
-app: Flask
+app: Quart

@@ -1,12 +1,12 @@
 from datetime import timedelta
 
-from flask_sqlalchemy import SQLAlchemy
-from flask import Flask
+from quart_sqlalchemy import SQLAlchemy
+from quart import Quart
 from loguru import logger
 
 import storage.shared as shared
 
-SERVER_NAME = "AirShare"
+AIRSHARE_BACKEND_NAME = "AirShare"
 HOST = "0.0.0.0"
 PORT = 10000
 DEBUG = True
@@ -19,4 +19,4 @@ shared.SECRET_KEY = SECRET_KEY
 
 APP_SQLALCHEMY_INSTANCE = shared.sqlalchemy
 if 'app' in shared.__dict__:
-    APP_APP: Flask = shared.app
+    APP_APP: Quart = shared.app

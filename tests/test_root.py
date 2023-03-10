@@ -2,19 +2,19 @@ import unittest
 import json
 
 from app import app
-from config import SERVER_NAME
+from config import AIRSHARE_BACKEND_NAME
 
 
 class RootTest(unittest.TestCase):
     def setUp(self) -> None:
         self.app = app.test_client()
 
-    def test_query_info(self):
-        response = self.app.get('/')
+    async def test_query_info(self):
+        response = await self.app.get('/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data), {
-            "name": SERVER_NAME,
+            "name": AIRSHARE_BACKEND_NAME,
             "versionCode": 'alpha',
             "version": -3,
         })
