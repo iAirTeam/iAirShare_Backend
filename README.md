@@ -6,4 +6,4 @@ AirShare 后端
 ## Installtion
     git clone https://github.com/iAirTeam/iAirShare_Backend.git
     pip install -r requirements.txt
-    python app.py
+    python -m quart app
