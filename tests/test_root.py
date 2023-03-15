@@ -1,11 +1,10 @@
 import unittest
-import json
 
 from app import app
 from config import AIRSHARE_BACKEND_NAME
 
 
-class RootTest(unittest.TestCase):
+class RootTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.app = app.test_client()
 
@@ -13,7 +12,7 @@ class RootTest(unittest.TestCase):
         response = await self.app.get('/')
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(json.loads(response.data), {
+        self.assertEqual(await response.json, {
             "name": AIRSHARE_BACKEND_NAME,
             "versionCode": 'alpha',
             "version": -3,

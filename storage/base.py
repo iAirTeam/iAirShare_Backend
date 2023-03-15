@@ -7,15 +7,12 @@ import random
 import sys
 
 if sys.version_info < (3, 11):  # Support for lower version
-    from typing import Optional, Type, Literal, Union, Tuple, List, Dict, Set
     from typing_extensions import TypedDict
-else:
-    from typing import Optional, TypedDict, Type, Literal, Union, Tuple, List, Dict, Self, Set
 
 from abc import abstractmethod, ABC
 from io import BytesIO
 
-from werkzeug.datastructures import FileStorage
+from quart.datastructures import FileStorage
 
 from .structure import *
 
@@ -23,12 +20,12 @@ from .structure import *
 class FileAPIImpl(ABC):
 
     @abstractmethod
-    def upload_repo_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
+    async def upload_repo_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
         """
         向 Repo 上传文件
         :param create_parents: 在父目录不存在时, 是否自动创建
         :param path: 目录位置
-        :param file: 文件(Flask Werkzeug的FileStorage)
+        :param file: 文件(Quart.datastructures的FileStorage)
         :return: FileId
         """
         pass
@@ -107,10 +104,10 @@ class FileAPIStorage(ABC):
         pass
 
     @abstractmethod
-    def _upload(self, file: FileStorage) -> FileStaticInfo:
+    async def _upload(self, file: FileStorage) -> FileStaticInfo:
         """
         通过 file 上传文件
-        :param file: Flask Werkzeug FileStorage 实例
+        :param file: Quart.datastructures FileStorage 实例
         :return: FileStaticInfo
         """
         pass
@@ -197,9 +194,9 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
     def repo_exist(self) -> bool:
         return self.config_dir.exists() and self.file_dir.exists()
 
-    def upload_repo_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialInfo:
+    async def upload_repo_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialInfo:
 
-        file_static, io = self._upload(file)
+        file_static, io = await self._upload(file)
 
         io.close()
 
@@ -207,7 +204,7 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
             "file_id": file_static['file_id'],
             "mimetype": file.mimetype,
             "file_size": file_static['file_size'],
-            "last_update": time.time()
+            "last_update": datetime.datetime.utcnow()
         }
 
         self.set_file(path, File(

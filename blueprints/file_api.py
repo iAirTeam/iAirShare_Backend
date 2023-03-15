@@ -86,14 +86,14 @@ async def files_operation(repo='public'):
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
                               msg="Unable to put a file to root")
 
-            files = request.files.getlist('file')
+            files = (await request.files).getlist('file')
 
             if not files:
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
                               msg="No File Selected")
 
             for file in files:
-                req_repo.upload_repo_file("/", file)
+                await req_repo.upload_repo_file("/", file)
 
             return kw_gen(_status=HTTPStatus.CREATED)
 
@@ -164,9 +164,9 @@ async def file_operation(repo='public', _=None):
 
                 file_info = req_repo.locate_file(storage_path)
 
-                return send_file(
+                return await send_file(
                     req_repo.get_file(file_info.file_property),
-                    download_name=file_info.file_name,
+                    attachment_filename=file_info.file_name,
                     last_modified=file_info.file_property['last_update'],
                 )
 
@@ -184,7 +184,7 @@ async def file_operation(repo='public', _=None):
 
                 return kw_gen(status=200, data=result)
         case 'PUT':
-            files = request.files.getlist('file')
+            files = (await request.files).getlist('file')
 
             if not storage_path.endswith('/'):
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400,
@@ -195,7 +195,7 @@ async def file_operation(repo='public', _=None):
                     return kw_gen(_status=HTTPStatus.ACCEPTED, code=202,
                                   msg="Notice: No File Selected!")
                 for file in files:
-                    req_repo.upload_repo_file(storage_path, file)
+                    await req_repo.upload_repo_file(storage_path, file)
 
                 return kw_gen(_status=HTTPStatus.CREATED)
 

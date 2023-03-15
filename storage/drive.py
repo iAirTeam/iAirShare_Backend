@@ -5,19 +5,10 @@ from .base import *
 from .structure import *
 
 from utils.encrypt import hash_file
+from utils.exceptions import *
+from utils import serialize
 
 repo_storage: dict["FileAPIConfig"] = {}
-
-
-def _serialize(obj):
-    if isinstance(obj, set):
-        return frozenset(obj)
-    elif isinstance(obj, frozenset):
-        return list(obj)
-    elif isinstance(obj, tuple):
-        return list(obj)
-    else:
-        return obj.__dict__
 
 
 class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
@@ -82,21 +73,22 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         return key
 
     def set_file_subs(self, path: str, file: FileBase, create_parents=False):
-        def creation_locate(path: str, file: FileBase, _depth: int = 0, _loc: FileMapping = None) -> Optional[FileBase]:
-            key = self._path_split(path)
+        def creation_locate(cur_path: str, creat: FileBase, _depth: int = 0, _loc: FileMapping = None)\
+                -> Optional[FileBase]:
+            key = self._path_split(cur_path)
 
             if not _loc:
                 _loc = self.mapping
 
-            for file in _loc:
-                if file.file_name != key[_depth]:
+            for cur_file in _loc:
+                if cur_file.file_name != key[_depth]:
                     continue
-                if len(key) > (_depth + 1) and file.file_type == FileType.directory:
-                    return creation_locate(path, _depth=_depth + 1, _loc=file.pointer)
-                return file
+                if len(key) > (_depth + 1) and cur_file.file_type == FileType.directory:
+                    return creation_locate(cur_path, creat, _depth=_depth + 1, _loc=cur_file.pointer)
+                return cur_file
 
             tmp_create = Directory(file_name=key[_depth], pointer=set()) if len(key) > (_depth + 1) \
-                else file
+                else creat
 
             _loc |= {tmp_create}
 
@@ -178,7 +170,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         if not self.config_dir.exists():
             return
         with self.config_dir.open('w', encoding='UTF-8') as file:
-            json.dump(self._config, file, default=_serialize, ensure_ascii=False, indent=4)
+            json.dump(self._config, file, default=serialize, ensure_ascii=False, indent=4)
 
     def __del__(self):
         atexit.unregister(self._save_storage)
@@ -220,15 +212,14 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
         with open(file_path, 'rb') as file:
             return BytesIO(file.read())
 
-    def _upload(self, file: FileStorage) -> tuple[FileStaticInfo, BytesIO]:
-        io = BytesIO()
-        file.save(io)
-        byte_file = io.getvalue()
+    async def _upload(self, file: FileStorage) -> tuple[FileStaticInfo, BytesIO]:
+        io = file if isinstance(file, BytesIO) else BytesIO(file.stream.read())
+        byte_file = memoryview(io.getvalue())
 
         file_hash = hash_file(byte_file)
         if not (self.file_dir / file_hash).exists():
-            with (self.file_dir / file_hash).open('wb') as file:
-                file.write(byte_file)
+            file.stream.seek(0)
+            await file.save(self.file_dir / file_hash)
 
         file_info: FileStaticInfo = {
             "file_id": file_hash,

@@ -7,7 +7,7 @@ from storage import *
 # 测试内容不代表最终品质.
 
 
-class FileAPITestCase(unittest.TestCase):
+class FileAPITestCase(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.repo = FileAPIPrivate('tests', create_not_exist=True)
         self.failUnless(self.repo.repo_exist)

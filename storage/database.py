@@ -27,6 +27,7 @@ class FileDBModelV2:
         id = sa.Column(sa.Integer, primary_key=True)
         list = sa.Column()
 
+
 class FileDBModelV1:
     class RepoDBModel(sqlalchemy.Model):
         id = sa.Column(sa.Integer, primary_key=True)

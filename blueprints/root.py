@@ -1,4 +1,4 @@
-from quart import Blueprint, send_file, url_for
+from quart import Blueprint, send_file
 
 from utils import gen_json_response
 

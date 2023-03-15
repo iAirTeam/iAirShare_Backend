@@ -1,3 +1,4 @@
+import datetime
 from copy import deepcopy
 from quart import Response
 from http import HTTPStatus
@@ -10,6 +11,13 @@ default_response = {
 }
 
 
+def _serialize(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.timestamp()
+    else:
+        return obj.__dict__
+
+
 def gen_response_str(**kwargs) -> str:
     """
     使用模板生成 json 响应字符串
@@ -18,7 +26,7 @@ def gen_response_str(**kwargs) -> str:
     """
     _dict = deepcopy(default_response)
     _dict.update(kwargs)
-    return json.dumps(_dict, ensure_ascii=False, default=lambda obj: obj.__dict__)
+    return json.dumps(_dict, ensure_ascii=False, default=_serialize)
 
 
 def gen_json_response_kw(_status=HTTPStatus.OK, **kwargs) -> Response:

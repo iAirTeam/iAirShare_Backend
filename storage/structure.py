@@ -1,19 +1,16 @@
+import datetime
 import sys
-import time
-from typing import TypedDict, Set
 from enum import Enum
 
-from strongtyping.strong_typing import match_typing, match_class_typing
+from strongtyping.strong_typing import match_class_typing
 
 if sys.version_info < (3, 11):  # Support for lower version
-    from typing import Optional, Type, Literal, Union, Tuple, List, Dict, Set
+    from typing import Optional, Type, Union, List, Set
     from typing_extensions import TypedDict
 else:
-    from typing import Optional, TypedDict, Type, Literal, Union, Tuple, List, Dict, Self, Set
+    from typing import Optional, TypedDict, Type, Union, List, Set
 
-from typing_extensions import Required, NotRequired
-
-from utils.exceptions import *
+from typing_extensions import NotRequired
 
 RepoId = str
 FileId = str
@@ -31,7 +28,7 @@ class FileSpecialInfo(TypedDict):
     file_id: FileId
     mimetype: NotRequired[str]
     file_size: NotRequired[int]
-    last_update: float
+    last_update: float | datetime.datetime
 
 
 class FileBase:
@@ -45,7 +42,11 @@ class FileBase:
                  ):
 
         if file_property is None and file_type != FileType.directory:
-            file_property = FileSpecialInfo(file_id=pointer, last_update=time.time())
+            file_property = FileSpecialInfo(file_id=pointer, last_update=datetime.datetime.utcnow())
+        elif file_property and not file_property.get('last_update') \
+                and file_type != FileType.directory:
+            file_property['last_update'] = \
+                datetime.datetime.fromtimestamp(file_property['last_update'])
         self.file_name: str = file_name
         self.file_type: FileType = file_type
         self.pointer: Union[FileId, "FileMapping"] = pointer
@@ -66,7 +67,10 @@ class FileBase:
             self.file_property['file_id'] = pointer
 
     def __repr__(self):
-        return f"[{'D' if self.file_type == FileType.directory else 'F'}] {self.file_name}"
+        try:
+            return f"[{'D' if self.file_type == FileType.directory else 'F'}] {self.file_name}"
+        except AttributeError:
+            return f"![{'D' if self.file_type == FileType.directory else 'F'}] {id(self)}"
 
     def __hash__(self):
         if self.file_name is None or self.file_type is None:
@@ -137,4 +141,4 @@ class RepoConfigAccessStructureRaw(TypedDict):
     repo_name: str
     permission_nodes: dict
     access_token: str
-    mapping: set
+    mapping: set[dict]

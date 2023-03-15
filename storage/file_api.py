@@ -1,6 +1,7 @@
 from . import integrated
 from .drive import *
 
+
 class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
     public_instance: "FileAPIPublic" = None
 

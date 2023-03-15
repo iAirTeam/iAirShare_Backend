@@ -5,7 +5,6 @@ from quart_cors import cors
 
 import config
 import storage.integrated
-from storage import integrated
 from blueprints import *
 
 
