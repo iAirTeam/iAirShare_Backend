@@ -37,7 +37,7 @@ def file_iter(req_repo, count: int, path: str, d_next):
 
 
 @bp.route('/<repo>/', methods=['GET', 'PUT'])
-@bp.route('/<repo>', methods=['GET'])
+@bp.route('/<repo>', methods=['GET', 'POST'])
 async def files_operation(repo='public'):
     values = await request.values
 
@@ -101,6 +101,16 @@ async def files_operation(repo='public'):
             if not isinstance(req_repo, FileAPIPublic):
                 req_repo.config_dir.unlink()
                 return kw_gen(_status=HTTPStatus.RESET_CONTENT, status=200)
+        case 'POST':
+            action = (await request.values).get('action')
+            match action:
+                case 'save':
+                    req_repo.save_storage()
+                case 'reload':
+                    ...
+                case 'create':
+                    ...
+            return kw_gen(_status=HTTPStatus.OK, msg='Success')
 
 
 @bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
