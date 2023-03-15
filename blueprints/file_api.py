@@ -110,6 +110,8 @@ async def files_operation(repo='public'):
                     ...
                 case 'create':
                     ...
+                case _:
+                    return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400, msg='Unexceptional action')
             return kw_gen(_status=HTTPStatus.OK, msg='Success')
 
 
