@@ -283,6 +283,9 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
     def get_file(self, file_info: FileStaticInfo | FileSpecialInfo) -> Optional[BytesIO]:
         return self._queries(file_info['file_id'])
 
+    def get_file_path(self, file_info: FileStaticInfo | FileSpecialInfo):
+        return pathlib.Path(self.file_dir) / file_info['file_id']
+
     def unlink_repo_file(self, path) -> FileId:
         return self.unset_file(path)
 

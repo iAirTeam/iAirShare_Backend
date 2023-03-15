@@ -7,6 +7,7 @@ from .structure import *
 from utils.encrypt import hash_file
 from utils.exceptions import *
 from utils import serialize
+from utils.logging import logger
 
 repo_storage: dict["FileAPIConfig"] = {}
 
@@ -204,6 +205,8 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
         if not self.base_dir.is_dir() and create_not_exist:
             self.base_dir.unlink()
             self.file_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(self.base_dir.absolute())
 
     def _queries(self, file_id) -> Optional[BytesIO]:
         file_path = pathlib.Path(self.file_dir) / file_id

@@ -165,7 +165,7 @@ async def file_operation(repo='public', _=None):
                 file_info = req_repo.locate_file(storage_path)
 
                 return await send_file(
-                    req_repo.get_file(file_info.file_property),
+                    req_repo.get_file_path(file_info.file_property),
                     attachment_filename=file_info.file_name,
                     last_modified=file_info.file_property['last_update'],
                 )

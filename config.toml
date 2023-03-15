@@ -1,0 +1,2 @@
+compress_min_size = 4096
+bind = ["0.0.0.0:10000"]
