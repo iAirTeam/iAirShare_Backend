@@ -1,5 +1,6 @@
 import atexit
 import json
+import os
 
 from .base import *
 from .structure import *
@@ -217,16 +218,16 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
 
     async def _upload(self, file: FileStorage) -> tuple[FileStaticInfo, BytesIO]:
         io = file if isinstance(file, BytesIO) else BytesIO(file.stream.read())
-        byte_file = memoryview(io.getvalue())
+        byte_file = io.getvalue()
 
-        file_hash = hash_file(byte_file)
+        file_hash = hash_file(memoryview(byte_file))
         if not (self.file_dir / file_hash).exists():
             file.stream.seek(0)
             await file.save(self.file_dir / file_hash)
 
         file_info: FileStaticInfo = {
             "file_id": file_hash,
-            "file_size": io.tell(),
+            "file_size": len(byte_file),
             "property": {}
         }
 
