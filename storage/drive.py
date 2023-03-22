@@ -35,6 +35,9 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         if not _loc:
             _loc = self.mapping
 
+        if not path:
+            return FileBase(file_name='base.(/)', file_type=FileType.directory, pointer=_loc)
+
         for file in _loc:
             if file.file_name != path[_depth]:
                 continue
@@ -63,12 +66,11 @@ class RepoMappingDrive(DriveBase, RepoMapping):
     def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
         if not file:
             raise InvalidFile
-        key = self._path_split(path)
-        if len(key) == 1 and not key[0]:
+        if len(path) == 1 and not path[0]:
             self._mapping |= {file}
         else:
             return self.set_file_subs(path, file, create_parents)
-        return key
+        return path
 
     def set_file_subs(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
         def creation_locate(cur_path: tuple[str] | list[str], creat: FileBase, _depth: int = 0, _loc: FileMapping = None)\
@@ -102,7 +104,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
 
     def unset_file(self, path: tuple[str] | list[str]):
         tmp = None
-        for file in self.locate_file('/'.join(path[:-1])).pointer:
+        for file in self.locate_file(path[:-1]).pointer:
             if file.file_name == [path[-1]]:
                 tmp = file
                 del file
@@ -115,7 +117,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
             _pre_inited = False
             self._config: RepoConfigStructureRaw = {
                 "repo_name": repo_id,
-                "mapping": [],
+                "mapping": set(),
                 "permission_nodes": {},
                 "access_token": ""
             }
@@ -125,19 +127,17 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         config_dir = self.base_dir / f"{repo_id + '_' if repo_id else ''}config.json"
 
         if not config_dir.exists() and create_not_exist:
-            with config_dir.open('w') as file:
-                json.dump(self.config, file)
+            self.save_storage()
         elif not config_dir.is_file() and create_not_exist:
             config_dir.unlink(missing_ok=True)
-            with config_dir.open('w') as file:
-                json.dump(self.config, file)
+            self.save_storage()
         elif not _pre_inited:
             try:
                 with config_dir.open('r+', encoding='UTF-8') as file:
                     try:
                         self._config: RepoConfigStructure = json.load(file)
                     except ValueError:
-                        json.dump(self.config, file)
+                        json.dump(self.config, file, default=serialize)
             except FileNotFoundError:
                 pass
 
@@ -146,16 +146,18 @@ class RepoMappingDrive(DriveBase, RepoMapping):
 
         self.config_dir = config_dir
 
-        new_mapping = set()
+        map_set = set()
 
         for item in self._config['mapping']:
             if not isinstance(item, FileBase):
                 item = FileBase(**item)
-            new_mapping |= {item}
+            map_set |= {item}
 
-        self.config['mapping'] = new_mapping
+        self._config: RepoConfigStructure
 
-        self._mapping = self.config['mapping']
+        self._config['mapping']: FileMapping = map_set
+
+        self._mapping: FileMapping = self.config['mapping']
 
     def _save_storage(self):
         """

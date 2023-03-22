@@ -24,17 +24,18 @@ class FileAPIPublic(FileAPIAccess, RepoMappingDrive, RepoStorageDrive):
 
 class FileAPIPrivate(FileAPIAccess, RepoMappingDrive, RepoStorageDrive):
     def __init__(self, repo_id: str, access_token: str = '', create_not_exist=False):
-        super().__init__(create_not_exist=create_not_exist, repo_id=repo_id)
         self.access_token = access_token
+        super().__init__(create_not_exist=create_not_exist, repo_id=repo_id, access_token=access_token)
 
     def verify_code(self, access_token) -> bool:
         return access_token == self._config['access_token']
 
 
 class AdminFileAPI(FileAPIPrivate):
-    def __init__(self, repo_id: str, token='', create_not_exist=False):
-        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
-        self.access_token = token
+    def __init__(self, repo_id: str, token='', default_code='', create_not_exist=False):
+        super().__init__(repo_id=repo_id, access_token=default_code, create_not_exist=create_not_exist)
+        self.admin_token = token
+        self.access_token = default_code
 
     def verify_code(self, access_token) -> bool:
-        return integrated.verify_admin_code(access_token)
+        return integrated.verify_admin_code(self.admin_token) or super().verify_code(access_token)

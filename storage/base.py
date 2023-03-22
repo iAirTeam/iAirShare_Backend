@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import copy
 import inspect
-import pathlib
 import random
 import sys
+from datetime import datetime
 
 from typing.io import IO
 
@@ -20,9 +20,12 @@ from .structure import *
 
 
 class FileAPIImpl(ABC):
+    @staticmethod
+    def _path_split(path: str):
+        return path.strip('/').split('/')
 
     @abstractmethod
-    async def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
+    def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
         """
         向 Repo 上传文件
         :param create_parents: 在父目录不存在时, 是否自动创建
@@ -32,20 +35,29 @@ class FileAPIImpl(ABC):
         """
         pass
 
+    def upload_directory(self, path: Optional[str], name: str, create_parents=False) -> None:
+        """
+        创建一个文件夹
+        :param path: 路径
+        :param name: 文件夹名称
+        :param create_parents: 当父目录不存在, 是否自动创建
+        :return: None
+        """
+
     @abstractmethod
     def list_dir(self, path: Optional[str]) -> Optional[list[str]]:
         """
-        获取 Repo 中 path 目录下的文件(夹) 的列表
+        获取 Repo 中 path 目录下的 文件(夹) 的列表
         :param path: 目录位置
         :return: 文件列表 否则为 None
         """
         pass
 
-    def next_ir(self, path: Optional[str], d_next: int = None):
+    def next_dir(self, path: Optional[str], d_next: int = None):
         """
         获取 Repo 中 path 目录下 的 一个文件(夹)
         :param path: 目录位置
-        :param d_next: 获取下一个文件(夹)用的标识
+        :param d_next: 获取下一个 文件(夹) 用的标识
         :return: 文件, 总数, 获取下一个的标识
         """
         pass
@@ -148,10 +160,6 @@ class RepoMapping(ABC):
         """
         pass
 
-    @staticmethod
-    def _path_split(path: str):
-        return path.strip('/').split('/')
-
     @property
     @abstractmethod
     def repo_name(self) -> str:
@@ -198,7 +206,7 @@ class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
         self.access_token = access_token
 
     def __repr__(self):
-        return f"{self.__class__.__name__} {self.access_token}@{self.repo_name}/{self.can_access}"
+        return f"{self.__class__.__name__} repo:{self.access_token}@{self.repo_name}/{self.can_access}"
 
     @property
     def can_access(self) -> bool:
@@ -208,11 +216,9 @@ class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
     def repo_exist(self) -> bool:
         return self.config_dir.exists() and self.file_dir.exists()
 
-    async def upload_repo_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialMeta:
+    def upload_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialMeta:
 
-        file_static, io = await self._upload(file)
-
-        io.close()
+        file_static = self._upload(file.stream)
 
         file_info: FileSpecialMeta = {
             "file_id": file_static['file_id'],
@@ -221,7 +227,7 @@ class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
             "last_update": datetime.datetime.utcnow()
         }
 
-        self.set_file(path, File(
+        self.place_file(path, File(
             file_name=file.filename,
             file_property=file_info,
             pointer=file_static['file_id']
@@ -229,8 +235,17 @@ class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
 
         return file_info
 
-    def list_repo_dir(self, path: str) -> Optional[FileMapping]:
-        raw = copy.deepcopy(self.locate_dir(path))
+    def place_file(self, path: Optional[str], file: File, create_parents=False):
+        self.set_file(self._path_split(path), file, create_parents)
+
+    def upload_directory(self, path: Optional[str], name: str, create_parents=False) -> None:
+        self.place_directory(path, Directory(file_name=name), create_parents)
+
+    def place_directory(self, path: Optional[str], file: Directory, create_parents=False) -> None:
+        self.set_file(self._path_split(path), file, create_parents)
+
+    def list_dir(self, path: str) -> Optional[FileMapping]:
+        raw = copy.deepcopy(self.locate_dir(self._path_split(path)))
 
         if not isinstance(raw, set):
             return None
@@ -242,9 +257,9 @@ class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
 
         return raw
 
-    def next_repo_dir(self, path: Optional[str], d_next: int = None):
+    def next_dir(self, path: Optional[str], d_next: int = None):
         if not d_next:
-            dir_lst = self.list_repo_dir(path)
+            dir_lst = self.list_dir(path)
             if not dir_lst:
                 return None, 0, 0
             iter_id = int(str(abs(hash(str(dir_lst)) + hash(path)))[:6])
@@ -283,40 +298,44 @@ class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
             except StopIteration:
                 return None, 0, 0
 
-    def quires_repo_file(self, path: str) -> Optional[FileStatic] | str:
-        ...
+    def quires_file(self, path: str) -> FileBase:
+        return self.locate_file(self._path_split(path))
 
     def get_file(self, file_info: FileStatic | FileSpecialMeta) -> Optional[BytesIO]:
-        return self._queries(file_info['file_id'])
+        return self.get_file(file_info)
 
     def get_file_path(self, file_info: FileStatic | FileSpecialMeta):
         return pathlib.Path(self.file_dir) / file_info['file_id']
 
-    def unlink_repo_file(self, path) -> FileId:
-        return self.unset_file(path)
+    def unlink_file(self, path) -> FileId:
+        return self.unset_file(self._path_split(path))
 
-    def move_repo_file(self, source_path: str, dest_path: str) -> bool:
-        src_file = self.locate_file(source_path)
-        dest_file = self.locate_file(dest_path)
+    def move_file(self, source_path: str, dest_path: str) -> bool:
+        src_file = self.locate_file(self._path_split(source_path))
+        dest_file = self.locate_file(self._path_split(dest_path))
         if src_file and not dest_file:
-            self.set_file(dest_path, copy.deepcopy(src_file))
-            self.unset_file(source_path)
+            self.set_file(self._path_split(dest_path), copy.deepcopy(src_file))
+            self.unset_file(self._path_split(source_path))
             return True
         else:
             return False
 
     def __getattribute__(self, item: str):
         ret_item = super().__getattribute__(item)
+
+        frame = inspect.currentframe()
+
+        if frame.f_back.f_code.co_filename == frame.f_code.co_filename:
+            return ret_item
+
         if item in (
                 'verify_code',
                 '_save_storage'
         ):
             return ret_item
 
-        frame = inspect.currentframe()
-
-        if frame.f_back.f_code.co_filename == frame.f_code.co_filename or not callable(ret_item) and \
-                not (item.endswith('_dir') and item in (
+        if not callable(ret_item) and \
+                not (item.endswith('_dir') and item.removeprefix('_') in (
                         'config',
                         'mapping'
                 )):

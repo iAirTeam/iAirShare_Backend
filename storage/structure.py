@@ -105,7 +105,7 @@ class Directory(FileBase):
                  pointer: "FileMapping" = None
                  ):
         if pointer is None:
-            pointer = {}
+            pointer = set()
         super().__init__(file_name, pointer, self.file_type, None)
 
 
@@ -130,7 +130,7 @@ class FileStaticProperty(TypedDict, total=False):
     prop_ver: int
 
 
-FileMapping = Set[FileBase] | List[FileBase]
+FileMapping = Union[Set[FileBase], List[FileBase]]
 
 
 @match_class_typing

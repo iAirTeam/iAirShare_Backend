@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from quart import Blueprint, request, send_file
 
-from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType, Directory
+from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType
 from utils import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
 from config import logger
 
@@ -14,7 +14,7 @@ def file_iter(req_repo, count: int, path: str, d_next):
     logger.debug(f"[File Iter] Iterating (iter_id:{d_next}) at {path} in {req_repo.repo_name}")
     if count > 20:
         count = 20
-    first, total, d_next = req_repo.next_repo_dir(path, d_next=d_next)
+    first, total, d_next = req_repo.next_dir(path, d_next=d_next)
     result = {"total": total, 'next': 0, 'files': [first]}
     logger.debug(f"[File Iter] Total: {total} Element {first}")
 
@@ -46,12 +46,33 @@ async def files_operation(repo='public'):
         .removesuffix('?' + '&'.join(map(lambda x: f"{x}={request.args[x]}", request.args)))
 
     req_repo = public_repo
+
     if repo != 'public':
         create = bool(values.get('create', False))
         token = values.get('token', '')
         req_repo = FileAPIPrivate(repo, token, create_not_exist=create)
 
+    if request.method == 'POST':
+        action = (await request.values).get('action')
+        match action:
+            case 'save':
+                req_repo.save_storage()
+            case 'reload':
+                ...
+            case 'create':
+                if not req_repo.repo_exist:
+                    token = values.get('token', '')
+                    FileAPIPrivate(repo, token, create_not_exist=True)
+                    return kw_gen(_status=HTTPStatus.CREATED, msg='Repo created.')
+                return kw_gen(_status=HTTPStatus.NOT_MODIFIED, msg='Repo already exist.')
+            case _:
+                return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400, msg='Unexceptional action')
+        return kw_gen(_status=HTTPStatus.OK, msg='Success')
+
     logger.info(f"Requested (/) in Repo({req_repo}) {req_repo.repo_name}({repo}) with tok:{values.get('token', '')}")
+
+    if not req_repo.can_access:
+        return kw_gen(_status=HTTPStatus.UNAUTHORIZED, code=401, msg='Repo does NOT EXIST or ACCESS DENIED.')
 
     match request.method:
         case "GET":
@@ -88,7 +109,7 @@ async def files_operation(repo='public'):
                               msg="No File Selected")
 
             for file in files:
-                await req_repo.upload_repo_file("/", file)
+                req_repo.upload_file("/", file)
 
             return kw_gen(_status=HTTPStatus.CREATED)
 
@@ -96,22 +117,10 @@ async def files_operation(repo='public'):
             if not isinstance(req_repo, FileAPIPublic):
                 req_repo.config_dir.unlink()
                 return kw_gen(_status=HTTPStatus.RESET_CONTENT, status=200)
-        case 'POST':
-            action = (await request.values).get('action')
-            match action:
-                case 'save':
-                    req_repo.save_storage()
-                case 'reload':
-                    ...
-                case 'create':
-                    ...
-                case _:
-                    return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400, msg='Unexceptional action')
-            return kw_gen(_status=HTTPStatus.OK, msg='Success')
 
 
-@bp.route('/<repo>/<path:_>', methods=['GET', 'PUT', 'DELETE'])
-async def file_operation(repo='public', _=None):
+@bp.route('/<repo>/<path:target>', methods=['GET', 'PUT', 'DELETE'])
+async def file_operation(repo='public', target=None):
     values = await request.values
 
     storage_path = request.full_path \
@@ -153,7 +162,7 @@ async def file_operation(repo='public', _=None):
 
     match request.method:
         case 'GET':
-            file_info = req_repo.quires_repo_file(storage_path)
+            file_info = req_repo.quires_file(storage_path)
 
             if not file_info:
                 return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400,
@@ -169,7 +178,7 @@ async def file_operation(repo='public', _=None):
                     return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
                                   msg="Invalid located file type")
 
-                file_info = req_repo.locate_file(storage_path)
+                file_info = req_repo.quires_file(storage_path)
 
                 return await send_file(
                     req_repo.get_file_path(file_info.file_property),
@@ -202,19 +211,16 @@ async def file_operation(repo='public', _=None):
                     return kw_gen(_status=HTTPStatus.ACCEPTED, code=202,
                                   msg="Notice: No File Selected!")
                 for file in files:
-                    await req_repo.upload_repo_file(storage_path, file)
+                    req_repo.upload_file(storage_path, file)
 
                 return kw_gen(_status=HTTPStatus.CREATED)
 
-            path_list = storage_path.strip('/').split('/')
+            path_list = storage_path.strip('/').split('/')[:-1]
             return kw_gen(
                 _status=HTTPStatus.CREATED,
-                place=req_repo.set_file(
-                    '/'.join(path_list[:-1]),
-                    Directory(
-                        file_name=path_list[-1],
-                        pointer=set()
-                    )
+                place=req_repo.upload_directory(
+                    '/'.join(path_list),
+                    target[:-1]
                 )
             )
         case 'DELETE':

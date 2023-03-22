@@ -21,12 +21,12 @@ class FileAPITestCase(unittest.IsolatedAsyncioTestCase):
         self.dir = Directory(file_name='bar')
 
         self.failUnlessEqual(self.dir.file_name, 'bar')
-        self.failUnlessEqual(self.dir.pointer, {})
+        self.failUnlessEqual(self.dir.pointer, set())
         self.assertIsNone(self.dir.file_property)
 
     def test_02_2_set_file(self):
-        result = self.repo.set_file('/', self.file)
-        self.assertEqual(result, [''])
+        result = self.repo.set_file([], self.file)
+        self.assertEqual(result, [])
 
     def test_02_2_set_file_udf(self):
         result = self.repo.set_file('/bad_dir/bad_f', self.file)
