@@ -10,10 +10,10 @@ from utils.exceptions import *
 from utils import serialize
 from utils.logging import logger
 
-repo_storage: dict["FileAPIConfig"] = {}
+repo_storage: dict["RepoMapping"] = {}
 
 
-class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
+class RepoMappingDrive(DriveBase, RepoMapping):
 
     # noinspection PyProtectedMember
     def __new__(cls, *args, **kwargs):
@@ -31,40 +31,36 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
             repo_storage.update({repo_id: obj})
             return obj
 
-    def locate_file(self, path: str, _depth: int = 0, _loc: FileMapping = None) -> Optional[FileBase]:
-        key = self._path_split(path)
-
+    def locate_file(self, path: tuple[str] | list[str], _depth: int = 0, _loc: FileMapping = None) -> Optional[FileBase]:
         if not _loc:
             _loc = self.mapping
 
         for file in _loc:
-            if file.file_name != key[_depth]:
+            if file.file_name != path[_depth]:
                 continue
-            if len(key) > (_depth + 1) and file.file_type == FileType.directory:
+            if len(path) > (_depth + 1) and file.file_type == FileType.directory:
                 return self.locate_file(path, _depth=_depth + 1, _loc=file.pointer)
             return file
 
-    def locate_dir(self, path: str, _depth: int = 0, _loc: FileMapping = None) -> FileMapping:
-        key = self._path_split(path)
-
+    def locate_dir(self, path: tuple[str] | list[str], _depth: int = 0, _loc: FileMapping = None) -> FileMapping:
         if not _loc:
             _loc = self.mapping
 
-        if not key[_depth]:
+        if not path[_depth]:
             return _loc
 
         for file in _loc:
-            if file.file_name != key[_depth]:
+            if file.file_name != path[_depth]:
                 continue
-            if len(key) > (_depth + 1) and file.file_type == FileType.directory:
+            if len(path) > (_depth + 1) and file.file_type == FileType.directory:
                 return self.locate_dir(path, _depth=_depth + 1, _loc=file.pointer)
             if file.file_type == FileType.directory:
                 return file.pointer
 
-    def set_folder(self, path: str, directory: Directory):
+    def set_folder(self, path: tuple[str] | list[str], directory: Directory):
         return self.set_file(path, file=directory)
 
-    def set_file(self, path: str, file: FileBase, create_parents=False):
+    def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
         if not file:
             raise InvalidFile
         key = self._path_split(path)
@@ -74,22 +70,20 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
             return self.set_file_subs(path, file, create_parents)
         return key
 
-    def set_file_subs(self, path: str, file: FileBase, create_parents=False):
-        def creation_locate(cur_path: str, creat: FileBase, _depth: int = 0, _loc: FileMapping = None)\
+    def set_file_subs(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
+        def creation_locate(cur_path: tuple[str] | list[str], creat: FileBase, _depth: int = 0, _loc: FileMapping = None)\
                 -> Optional[FileBase]:
-            key = self._path_split(cur_path)
-
             if not _loc:
                 _loc = self.mapping
 
             for cur_file in _loc:
-                if cur_file.file_name != key[_depth]:
+                if cur_file.file_name != path[_depth]:
                     continue
-                if len(key) > (_depth + 1) and cur_file.file_type == FileType.directory:
+                if len(path) > (_depth + 1) and cur_file.file_type == FileType.directory:
                     return creation_locate(cur_path, creat, _depth=_depth + 1, _loc=cur_file.pointer)
                 return cur_file
 
-            tmp_create = Directory(file_name=key[_depth], pointer=set()) if len(key) > (_depth + 1) \
+            tmp_create = Directory(file_name=path[_depth], pointer=set()) if len(path) > (_depth + 1) \
                 else creat
 
             _loc |= {tmp_create}
@@ -106,10 +100,9 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
             place |= {file}
         return path
 
-    def unset_file(self, path: str):
-        key = self._path_split(path)
+    def unset_file(self, path: tuple[str] | list[str]):
         tmp = None
-        for file in self.locate_file('/'.join(key[:-1])).pointer:
+        for file in self.locate_file('/'.join(path[:-1])).pointer:
             if file.file_name == [path[-1]]:
                 tmp = file
                 del file
@@ -120,7 +113,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
 
         if not hasattr(self, '_config'):
             _pre_inited = False
-            self._config: RepoConfigAccessStructureRaw = {
+            self._config: RepoConfigStructureRaw = {
                 "repo_name": repo_id,
                 "mapping": [],
                 "permission_nodes": {},
@@ -142,7 +135,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
             try:
                 with config_dir.open('r+', encoding='UTF-8') as file:
                     try:
-                        self._config: RepoConfigAccessStructure = json.load(file)
+                        self._config: RepoConfigStructure = json.load(file)
                     except ValueError:
                         json.dump(self.config, file)
             except FileNotFoundError:
@@ -187,7 +180,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         return self._config['repo_name']
 
     @property
-    def config(self) -> RepoConfigAccessStructure:
+    def config(self) -> RepoConfigStructure:
         return self._config
 
     @property
@@ -195,7 +188,7 @@ class FileAPIConfigDrive(FileAPIDriveBase, FileAPIConfig):
         return self._mapping
 
 
-class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
+class RepoStorageDrive(DriveBase, RepoStorage, ABC):
     def __init__(self, repo_id: str, create_not_exist=True):
         super().__init__()
 
@@ -209,26 +202,29 @@ class FileAPIStorageDrive(FileAPIDriveBase, FileAPIStorage, ABC):
 
         logger.info(self.base_dir.absolute())
 
-    def _queries(self, file_id) -> Optional[BytesIO]:
+    def _quires(self, file_id) -> Optional[BytesIO]:
         file_path = pathlib.Path(self.file_dir) / file_id
         if not file_path.is_file():
             return None
         with open(file_path, 'rb') as file:
             return BytesIO(file.read())
 
-    async def _upload(self, file: FileStorage) -> tuple[FileStaticInfo, BytesIO]:
-        io = file if isinstance(file, BytesIO) else BytesIO(file.stream.read())
-        byte_file = io.getvalue()
+    def _upload(self, file: IO) -> FileStatic:
+        bytes_io = BytesIO(file.read())
+        byte_file = bytes_io.getvalue()
 
         file_hash = hash_file(memoryview(byte_file))
         if not (self.file_dir / file_hash).exists():
-            file.stream.seek(0)
-            await file.save(self.file_dir / file_hash)
+            with (self.file_dir / file_hash).open('wb') as fp:
+                fp.write(byte_file)
 
-        file_info: FileStaticInfo = {
+        file_info: FileDriveStatic = {
             "file_id": file_hash,
             "file_size": len(byte_file),
+            "file_real_path": (self.file_dir / file_hash),
             "property": {}
         }
 
-        return file_info, io
+        bytes_io.close()
+
+        return file_info

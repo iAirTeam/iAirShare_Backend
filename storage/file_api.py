@@ -2,7 +2,7 @@ from . import integrated
 from .drive import *
 
 
-class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
+class FileAPIPublic(FileAPIAccess, RepoMappingDrive, RepoStorageDrive):
     public_instance: "FileAPIPublic" = None
 
     def __new__(cls, *args, **kwargs):
@@ -15,19 +15,19 @@ class FileAPIPublic(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
     def __init__(self):
         super().__init__(repo_id='public', create_not_exist=True)
 
-    def can_access_repo(self, access_token) -> bool:
+    def verify_code(self, access_token) -> bool:
         return True
 
     def repo_exist(self) -> bool:
         return True
 
 
-class FileAPIPrivate(FileAPIAccess, FileAPIConfigDrive, FileAPIStorageDrive):
+class FileAPIPrivate(FileAPIAccess, RepoMappingDrive, RepoStorageDrive):
     def __init__(self, repo_id: str, access_token: str = '', create_not_exist=False):
         super().__init__(create_not_exist=create_not_exist, repo_id=repo_id)
         self.access_token = access_token
 
-    def can_access_repo(self, access_token) -> bool:
+    def verify_code(self, access_token) -> bool:
         return access_token == self._config['access_token']
 
 
@@ -36,5 +36,5 @@ class AdminFileAPI(FileAPIPrivate):
         super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
         self.access_token = token
 
-    def can_access_repo(self, access_token) -> bool:
+    def verify_code(self, access_token) -> bool:
         return integrated.verify_admin_code(access_token)

@@ -50,13 +50,8 @@ async def files_operation(repo='public'):
         create = bool(values.get('create', False))
         token = values.get('token', '')
         req_repo = FileAPIPrivate(repo, token, create_not_exist=create)
-        if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
-            logger.debug(f"Requested Repo {repo} \n"
-                         f"E:{req_repo.repo_exist} A:{req_repo.can_access_repo(token)}")
-            return kw_gen(_status=HTTPStatus.NOT_FOUND, status=400,
-                          msg="Requested Repo does not exist or Access Denied.")
 
-    logger.info(f"Requested (/) in Repo {req_repo.repo_name}({repo}) with tok:{values.get('token', '')}")
+    logger.info(f"Requested (/) in Repo({req_repo}) {req_repo.repo_name}({repo}) with tok:{values.get('token', '')}")
 
     match request.method:
         case "GET":
@@ -138,15 +133,15 @@ async def file_operation(repo='public', _=None):
         repo = access_repo
         storage_path = new_storage_path
 
-        if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
+        if not req_repo.can_access:
             return kw_gen(status=400,
                           msg="Requested Repo Access Denied or repo does not Exist")
     elif repo != 'public':
         token = values.get('token', '')
         req_repo = FileAPIPrivate(repo, token)
-        if not (req_repo.repo_exist and req_repo.can_access_repo(token)):
+        if not req_repo.can_access:
             logger.debug(f"Requested Repo {repo} \n"
-                         f"E:{req_repo.repo_exist} A:{req_repo.can_access_repo(token)}")
+                         f"E:{req_repo.repo_exist} A:{req_repo.verify_code(token)}")
             return kw_gen(status=400,
                           msg="Requested Repo does not Exist or Access Denied")
 

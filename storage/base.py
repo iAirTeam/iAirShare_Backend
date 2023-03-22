@@ -6,6 +6,8 @@ import pathlib
 import random
 import sys
 
+from typing.io import IO
+
 if sys.version_info < (3, 11):  # Support for lower version
     from typing_extensions import TypedDict
 
@@ -20,7 +22,7 @@ from .structure import *
 class FileAPIImpl(ABC):
 
     @abstractmethod
-    async def upload_repo_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
+    async def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
         """
         向 Repo 上传文件
         :param create_parents: 在父目录不存在时, 是否自动创建
@@ -31,7 +33,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def list_repo_dir(self, path: Optional[str]) -> Optional[list[str]]:
+    def list_dir(self, path: Optional[str]) -> Optional[list[str]]:
         """
         获取 Repo 中 path 目录下的文件(夹) 的列表
         :param path: 目录位置
@@ -39,10 +41,9 @@ class FileAPIImpl(ABC):
         """
         pass
 
-    def next_repo_dir(self, path: Optional[str], d_next: int = None):
+    def next_ir(self, path: Optional[str], d_next: int = None):
         """
         获取 Repo 中 path 目录下 的 一个文件(夹)
-        不强制要求实现
         :param path: 目录位置
         :param d_next: 获取下一个文件(夹)用的标识
         :return: 文件, 总数, 获取下一个的标识
@@ -50,7 +51,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def quires_repo_file(self, path: str) -> Optional[FileStaticInfo] | str:
+    def quires_file(self, path: str) -> Optional[FileStatic] | str:
         """
         根据 路径 获取文件信息
         :param path: 文件路径
@@ -60,11 +61,16 @@ class FileAPIImpl(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_file(file_info: Optional[FileStaticInfo] | str):
+    def get_file(file_info: Optional[FileStatic] | str) -> IO:
+        """
+        根据 文件ID 获取文件数据
+        :param file_info:
+        :return:
+        """
         pass
 
     @abstractmethod
-    def unlink_repo_file(self, path: str) -> bool:
+    def unlink_file(self, path: str) -> bool:
         """
         移除目标 path mapping 链接 (≈删除文件)
         :param path: 文件路径
@@ -73,7 +79,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def move_repo_file(self, src_path: str, dest_path: str) -> bool:
+    def move_file(self, src_path: str, dest_path: str) -> bool:
         """
         移动目标 old_path 指向的内容到 new_path (≈可以理解为移动文件(夹))
         :param dest_path: 目标位置
@@ -83,7 +89,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def can_access_repo(self, access_token) -> bool:
+    def verify_code(self, access_token) -> bool:
         """是否可以访问存储库"""
         pass
 
@@ -95,7 +101,7 @@ class FileAPIImpl(ABC):
 
 
 # noinspection PyUnusedLocal
-class FileAPIStorage(ABC):
+class RepoStorage(ABC):
     @abstractmethod
     def __init__(self, create_not_exist: bool):
         """
@@ -104,17 +110,17 @@ class FileAPIStorage(ABC):
         pass
 
     @abstractmethod
-    async def _upload(self, file: FileStorage) -> FileStaticInfo:
+    def _upload(self, file: IO) -> FileStatic:
         """
         通过 file 上传文件
-        :param file: Quart.datastructures FileStorage 实例
+        :param file: 文件数据 (IO)
         :return: FileStaticInfo
         """
         pass
 
     @abstractmethod
     @match_class_typing
-    def _queries(self, file_id: FileId) -> Optional[BytesIO]:
+    def _quires(self, file_id: FileId) -> Optional[BytesIO]:
         """
         通过 文件ID 获取文件数据
         :param file_id: 文件ID
@@ -122,17 +128,18 @@ class FileAPIStorage(ABC):
         """
         pass
 
-    def get_file(self, file_info: FileSpecialInfo) -> Optional[BytesIO]:
+    @classmethod
+    def _get_file_id(cls, file_info: FileSpecialMeta) -> FileId:
         """
-        通过文件信息获取文件数据
+        通过 文件信息 获取 文件ID
         :param file_info: 文件信息(如FileSpecialInfo)
-        :return: 文件数据(BytesIO) 不存在时为 None
+        :return: FileID
         """
-        return self._queries(file_info['file_id'])
+        return file_info['file_id']
 
 
 # noinspection PyUnusedLocal
-class FileAPIConfig(ABC):
+class RepoMapping(ABC):
 
     def __init__(self, repo_id: str, create_not_exist: bool):
         """
@@ -152,7 +159,7 @@ class FileAPIConfig(ABC):
 
     @property
     @abstractmethod
-    def config(self) -> RepoConfigAccessStructure:
+    def config(self) -> RepoConfigStructure:
         pass
 
     @property
@@ -160,23 +167,23 @@ class FileAPIConfig(ABC):
         return self.config['mapping']
 
     @abstractmethod
-    def locate_file(self, path: str) -> Optional[FileBase]:
+    def locate_file(self, path: tuple[str] | list[str]) -> Optional[FileBase]:
         pass
 
     @abstractmethod
-    def locate_dir(self, path: str) -> Optional[FileMapping]:
+    def locate_dir(self, path: tuple[str] | list[str]) -> Optional[FileMapping]:
         pass
 
     @abstractmethod
-    def set_file(self, path: str, file: FileBase, create_parents=False):
+    def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
         pass
 
     @abstractmethod
-    def unset_file(self, path: str):
+    def unset_file(self, path: tuple[str] | list[str]):
         pass
 
 
-class FileAPIDriveBase:
+class DriveBase:
     def __init__(self):
         base_dir = pathlib.Path('instance')
         file_dir = base_dir / 'files'
@@ -185,22 +192,29 @@ class FileAPIDriveBase:
         self.file_dir: pathlib.Path = pathlib.Path(file_dir)
 
 
-class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
+class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
     def __init__(self, repo_id: str, create_not_exist: bool, access_token: str = None):
         super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
         self.access_token = access_token
+
+    def __repr__(self):
+        return f"{self.__class__.__name__} {self.access_token}@{self.repo_name}/{self.can_access}"
+
+    @property
+    def can_access(self) -> bool:
+        return self.repo_exist and self.verify_code(self.access_token)
 
     @property
     def repo_exist(self) -> bool:
         return self.config_dir.exists() and self.file_dir.exists()
 
-    async def upload_repo_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialInfo:
+    async def upload_repo_file(self, path: str, file: FileStorage, create_parents=False) -> FileSpecialMeta:
 
         file_static, io = await self._upload(file)
 
         io.close()
 
-        file_info: FileSpecialInfo = {
+        file_info: FileSpecialMeta = {
             "file_id": file_static['file_id'],
             "mimetype": file.mimetype,
             "file_size": file_static['file_size'],
@@ -269,21 +283,13 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
             except StopIteration:
                 return None, 0, 0
 
-    def quires_repo_file(self, path) -> Optional[FileBase]:
-        try:
-            result = copy.deepcopy(self.locate_file(path))
-            if not isinstance(result, FileBase):
-                return None
-            if result.file_type == FileType.file:
-                result.pointer = None
-            return result
-        except KeyError:
-            return None
+    def quires_repo_file(self, path: str) -> Optional[FileStatic] | str:
+        ...
 
-    def get_file(self, file_info: FileStaticInfo | FileSpecialInfo) -> Optional[BytesIO]:
+    def get_file(self, file_info: FileStatic | FileSpecialMeta) -> Optional[BytesIO]:
         return self._queries(file_info['file_id'])
 
-    def get_file_path(self, file_info: FileStaticInfo | FileSpecialInfo):
+    def get_file_path(self, file_info: FileStatic | FileSpecialMeta):
         return pathlib.Path(self.file_dir) / file_info['file_id']
 
     def unlink_repo_file(self, path) -> FileId:
@@ -302,7 +308,7 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
     def __getattribute__(self, item: str):
         ret_item = super().__getattribute__(item)
         if item in (
-                'can_access_repo',
+                'verify_code',
                 '_save_storage'
         ):
             return ret_item
@@ -316,5 +322,5 @@ class FileAPIAccess(FileAPIImpl, FileAPIStorage, FileAPIConfig, ABC):
                 )):
             return ret_item
 
-        return ret_item if self.can_access_repo(self.access_token) \
+        return ret_item if self.verify_code(self.access_token) \
             else None

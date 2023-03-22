@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 import sys
 from enum import Enum
 
@@ -24,7 +25,7 @@ class FileType(str, Enum):
     directory: str = 'directory'
 
 
-class FileSpecialInfo(TypedDict):
+class FileSpecialMeta(TypedDict):
     file_id: FileId
     mimetype: NotRequired[str]
     file_size: NotRequired[int]
@@ -38,11 +39,11 @@ class FileBase:
                  file_name: str,
                  pointer: Union[FileId, "FileMapping"],
                  file_type=file_type,
-                 file_property: Optional[FileSpecialInfo] = None
+                 file_property: Optional[FileSpecialMeta] = None
                  ):
 
         if file_property is None and file_type != FileType.directory:
-            file_property = FileSpecialInfo(file_id=pointer, last_update=datetime.datetime.utcnow())
+            file_property = FileSpecialMeta(file_id=pointer, last_update=datetime.datetime.utcnow())
         elif file_property and not file_property.get('last_update') \
                 and file_type != FileType.directory:
             file_property['last_update'] = \
@@ -55,10 +56,10 @@ class FileBase:
             for file in self.pointer:
                 proc |= {FileBase(**file)}
             self.pointer = proc
-        self.file_property: Optional[FileSpecialInfo] = file_property
+        self.file_property: Optional[FileSpecialMeta] = file_property
         if self.file_type != FileType.directory:
             if not file_property:
-                self.file_property: FileSpecialInfo = file_property
+                self.file_property: FileSpecialMeta = file_property
 
             assert self.file_property.get('file_id', self.pointer) == self.pointer, \
                 f"{self.file_property['file_id']} != {self.pointer}" \
@@ -91,7 +92,7 @@ class File(FileBase):
     def __init__(self,
                  file_name: str,
                  pointer: FileId,
-                 file_property: Optional[FileSpecialInfo] = None
+                 file_property: Optional[FileSpecialMeta] = None
                  ):
         super().__init__(file_name, pointer, self.file_type, file_property)
 
@@ -108,10 +109,14 @@ class Directory(FileBase):
         super().__init__(file_name, pointer, self.file_type, None)
 
 
-class FileStaticInfo(TypedDict):
+class FileStatic(TypedDict):
     file_id: FileId
     file_size: int
     property: "FileStaticProperty"
+
+
+class FileDriveStatic(FileStatic):
+    file_real_path: str | pathlib.Path
 
 
 class FileStaticProperty(TypedDict, total=False):
@@ -129,16 +134,16 @@ FileMapping = Set[FileBase] | List[FileBase]
 
 
 @match_class_typing
-class RepoConfigAccessStructure(TypedDict):
+class RepoConfigStructureRaw(TypedDict):
+    repo_name: str
+    permission_nodes: dict
+    access_token: str
+    mapping: list
+
+
+@match_class_typing
+class RepoConfigStructure(TypedDict):
     repo_name: str
     permission_nodes: dict[str, bool | Type["permission_nodes"]]
     access_token: str
     mapping: FileMapping
-
-
-@match_class_typing
-class RepoConfigAccessStructureRaw(TypedDict):
-    repo_name: str
-    permission_nodes: dict
-    access_token: str
-    mapping: set[dict]
