@@ -1,12 +1,19 @@
 from datetime import timedelta
 
-from quart_sqlalchemy import SQLAlchemy
 from quart import Quart
 from loguru import logger
 
 import storage.shared as shared
 
-AIRSHARE_BACKEND_NAME = "AirShare"
+# Do not modify here
+
+SERVER_VersionCode = 'alpha'
+SERVER_Version = -1100
+
+# End of Do not modify
+
+BACKEND_Name = "AirShare"
+
 HOST = "0.0.0.0"
 PORT = 10000
 DEBUG = True
@@ -21,3 +28,9 @@ shared.SECRET_KEY = SECRET_KEY
 APP_SQLALCHEMY_INSTANCE = shared.sqlalchemy
 if 'app' in shared.__dict__:
     APP_APP: Quart = shared.app
+
+logger.info(f"iAirShare {BACKEND_Name} {SERVER_VersionCode}({SERVER_VersionCode})\n"
+            f"{HOST}:{PORT} DEBUG: {DEBUG}")
+logger.debug(f"Admin access admin@{ADMIN_CODE}")
+logger.debug(f"Max Content Length {MAX_CONTENT_LENGTH}")
+logger.debug(f"SECRET_KEY {SECRET_KEY}")

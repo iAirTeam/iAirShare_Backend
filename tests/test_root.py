@@ -1,7 +1,7 @@
 import unittest
 
 from app import app
-from config import AIRSHARE_BACKEND_NAME
+from config import BACKEND_Name, SERVER_Version, SERVER_VersionCode
 
 
 class RootTest(unittest.IsolatedAsyncioTestCase):
@@ -13,9 +13,9 @@ class RootTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(await response.json, {
-            "name": AIRSHARE_BACKEND_NAME,
-            "versionCode": 'alpha',
-            "version": -3,
+            "name": BACKEND_Name,
+            "versionCode": SERVER_VersionCode,
+            "version": SERVER_Version,
         })
 
 

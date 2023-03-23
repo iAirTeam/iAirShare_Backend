@@ -25,11 +25,11 @@ class FileAPITestCase(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(self.dir.file_property)
 
     def test_02_2_set_file(self):
-        result = self.repo.set_file([], self.file)
+        result = self.repo.set_file([], self.file)  # Empty list as repo root
         self.assertEqual(result, [])
 
     def test_02_2_set_file_udf(self):
-        result = self.repo.set_file('/bad_dir/bad_f', self.file)
+        result = self.repo.set_file(["bad_dir", "bad_f"], self.file)
         self.assertIsNone(result)
 
 

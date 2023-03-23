@@ -1,6 +1,5 @@
 import atexit
 import json
-import os
 
 from .base import *
 from .structure import *
@@ -31,7 +30,12 @@ class RepoMappingDrive(DriveBase, RepoMapping):
             repo_storage.update({repo_id: obj})
             return obj
 
-    def locate_file(self, path: tuple[str] | list[str], _depth: int = 0, _loc: FileMapping = None) -> Optional[FileBase]:
+    def locate_file(
+            self, path: tuple[str] | list[str],
+            _depth: int = 0,
+            _loc: FileMapping = None
+    ) \
+            -> Optional[FileBase]:
         if not _loc:
             _loc = self.mapping
 
@@ -73,7 +77,12 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         return path
 
     def set_file_subs(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
-        def creation_locate(cur_path: tuple[str] | list[str], creat: FileBase, _depth: int = 0, _loc: FileMapping = None)\
+        def creation_locate(
+                cur_path: tuple[str] | list[str],
+                creat: FileBase,
+                _depth: int = 0,
+                _loc: FileMapping = None
+        )\
                 -> Optional[FileBase]:
             if not _loc:
                 _loc = self.mapping
@@ -191,7 +200,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
 
 
 class RepoStorageDrive(DriveBase, RepoStorage, ABC):
-    def __init__(self, repo_id: str, create_not_exist=True):
+    def __init__(self, create_not_exist=True):
         super().__init__()
 
         self.access_token: Optional[str] = None

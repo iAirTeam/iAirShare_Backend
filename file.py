@@ -4,6 +4,7 @@ import ffmpeg
 from PIL import Image
 
 
+# noinspection PyUnresolvedReferences
 class File:
     def get_fileinfo(self, filename: str, ffprobe='ffprobe.exe'):
         response = {

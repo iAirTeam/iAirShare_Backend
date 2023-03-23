@@ -6,10 +6,10 @@ from enum import Enum
 from strongtyping.strong_typing import match_class_typing
 
 if sys.version_info < (3, 11):  # Support for lower version
-    from typing import Optional, Type, Union, List, Set
+    from typing import Optional, Type, Union
     from typing_extensions import TypedDict
 else:
-    from typing import Optional, TypedDict, Type, Union, List, Set
+    from typing import Optional, TypedDict, Type, Union
 
 from typing_extensions import NotRequired
 
@@ -130,7 +130,15 @@ class FileStaticProperty(TypedDict, total=False):
     prop_ver: int
 
 
-FileMapping = Union[Set[FileBase], List[FileBase]]
+FileMapping = set[FileBase] | list[FileBase]
+RawFileMapping = set["FileBaseDict"] | list["FileBaseDict"]
+
+
+class FileBaseDict(TypedDict):
+    file_name: str
+    file_type: str
+    file_property: dict
+    pointer: RawFileMapping
 
 
 @match_class_typing
@@ -138,7 +146,7 @@ class RepoConfigStructureRaw(TypedDict):
     repo_name: str
     permission_nodes: dict
     access_token: str
-    mapping: list
+    mapping: RawFileMapping
 
 
 @match_class_typing
