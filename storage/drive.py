@@ -200,8 +200,8 @@ class RepoMappingDrive(DriveBase, RepoMapping):
 
 
 class RepoStorageDrive(DriveBase, RepoStorage, ABC):
-    def __init__(self, create_not_exist=True):
-        super().__init__()
+    def __init__(self, repo_id: str, create_not_exist=True):
+        super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
 
         self.access_token: Optional[str] = None
 
@@ -211,7 +211,7 @@ class RepoStorageDrive(DriveBase, RepoStorage, ABC):
             self.base_dir.unlink()
             self.file_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(self.base_dir.absolute())
+        logger.info(f"Instance(Base) Directory: {self.base_dir.absolute()}")
 
     def _quires(self, file_id) -> Optional[BytesIO]:
         file_path = pathlib.Path(self.file_dir) / file_id
