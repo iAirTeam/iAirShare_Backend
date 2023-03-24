@@ -192,12 +192,19 @@ class RepoMapping(ABC):
 
 
 class DriveBase:
-    def __init__(self):
+    def __init__(self, repo_id: str, create_not_exist: bool):
         base_dir = pathlib.Path('instance')
         file_dir = base_dir / 'files'
 
         self.base_dir: pathlib.Path = pathlib.Path(base_dir)
         self.file_dir: pathlib.Path = pathlib.Path(file_dir)
+
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+        if create_not_exist:
+            self.file_dir.mkdir(parents=True, exist_ok=True)
+
+        self._repo = repo_id
 
 
 class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
