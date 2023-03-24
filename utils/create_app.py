@@ -30,7 +30,7 @@ class Backend(Quart):
 
 
 def create_app():
-    app = Backend(config_instance=config)
+    app = Backend(config_instance=config, blueprints=[ws_file_api])
 
     cors(
         app,
