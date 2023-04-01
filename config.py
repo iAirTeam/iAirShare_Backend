@@ -38,6 +38,6 @@ APP_SQLALCHEMY_INSTANCE = shared.sqlalchemy
 if 'app' in shared.__dict__:
     APP_APP: Quart = shared.app
 
-logger.debug(f"[Config] Default admin password admin@{ADMIN_CODE}")
+logger.info(f"[Config] Admin access admin@{ADMIN_CODE}")
 logger.debug(f"[Config] Max Content Length {MAX_CONTENT_LENGTH}")
 logger.debug(f"[Config] SECRET_KEY {SECRET_KEY}")
