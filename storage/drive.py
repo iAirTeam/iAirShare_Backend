@@ -135,6 +135,8 @@ class RepoMappingDrive(DriveBase, RepoMapping):
 
         config_dir = self.base_dir / f"{repo_id + '_' if repo_id else ''}config.json"
 
+        self.config_dir = config_dir
+
         if not config_dir.exists() and create_not_exist:
             self.save_storage()
         elif not config_dir.is_file() and create_not_exist:
@@ -152,8 +154,6 @@ class RepoMappingDrive(DriveBase, RepoMapping):
 
         if not _pre_inited and config_dir.exists() and create_not_exist:
             atexit.register(self._save_storage)
-
-        self.config_dir = config_dir
 
         map_set = set()
 
