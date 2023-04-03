@@ -35,7 +35,7 @@ bind = [f"{HOST}:{PORT}"]
 shared.SECRET_KEY = SECRET_KEY
 
 APP_SQLALCHEMY_INSTANCE = shared.sqlalchemy
-if 'app' in shared.__dict__:
+if 'app' in shared.__dict__:  # pragma: no cover
     APP_APP: Quart = shared.app
 
 logger.info(f"[Config] Admin access admin@{ADMIN_CODE}")
