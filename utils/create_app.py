@@ -19,7 +19,7 @@ class Backend(Quart):
         self.register_blueprint(root_bp)
         self.register_blueprint(file_bp)
 
-        if blueprints:
+        if blueprints:  # pragma: no cover
             for blueprint in blueprints:
                 self.register_blueprint(blueprint)
 

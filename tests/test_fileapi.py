@@ -24,6 +24,13 @@ class FileAPITestCase(unittest.IsolatedAsyncioTestCase):
         self.failUnlessEqual(self.dir.pointer, set())
         self.assertIsNone(self.dir.file_property)
 
+    def test_init_public_instance(self):
+        public1 = FileAPIPublic()
+        self.assertTrue(public1.repo_exist())
+        self.assertTrue(public1.can_access)
+        public2 = FileAPIPublic()
+        self.assertIs(public1, public2)
+
     def test_02_2_set_file(self):
         result = self.repo.set_file([], self.file)  # Empty list as repo root
         self.assertEqual(result, [])
