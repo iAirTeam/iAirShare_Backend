@@ -5,7 +5,7 @@ from enum import Enum
 
 from strongtyping.strong_typing import match_class_typing
 
-if sys.version_info < (3, 11):  # Support for lower version
+if sys.version_info < (3, 11):  # pragma: no cover
     from typing import Optional, Type, Union
     from typing_extensions import TypedDict
 else:
