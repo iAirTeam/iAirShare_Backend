@@ -5,12 +5,13 @@ from quart_cors import cors
 
 import config
 import storage.integrated
-from blueprints import *
-from .logging import logger
+from utils.logger import logger
 
 
 class Backend(Quart):
     def __init__(self, config_instance: object = None, blueprints: list[Blueprint] | tuple[Blueprint] = None):
+        from blueprints import root_bp, file_bp
+
         super().__init__(__name__, instance_relative_config=True,
                          instance_path=str(pathlib.Path('instance').absolute()))
         if config_instance:
@@ -30,7 +31,12 @@ class Backend(Quart):
 
 
 def create_app():
-    app = Backend(config_instance=config)
+    if hasattr(config, "APP_APP") and config.APP_APP:
+        app = config.APP_APP
+    elif hasattr(storage.integrated, "app") and storage.integrated.shared.app:
+        app = storage.integrated.shared.app
+    else:
+        app = Backend(config_instance=config)
 
     cors(
         app,

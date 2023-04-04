@@ -6,11 +6,27 @@ from typing import Any
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
 
-from utils.create_app import create_app
+from helpers.create_app import create_app
 import config as config
-from loguru import logger
+from utils.logger import logger
+
+
+class LoguruWrapper:
+    def __init__(self, another):
+        self.another = another
+
+    def _attrAsyncWrapper(self, func):
+        async def _wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        return _wrapper
+
+    def __getattr__(self, item):
+        return self._attrAsyncWrapper(logger.__getattribute__(item))
+
 
 config = Config().from_object(config)
+config.logger_class = LoguruWrapper
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
