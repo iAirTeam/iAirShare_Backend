@@ -15,14 +15,15 @@ class LoguruWrapper:
     def __init__(self, another):
         self.another = another
 
-    def _attrAsyncWrapper(self, func):
-        async def _wrapper(*args, **kwargs):
+    @staticmethod
+    def _async_wrapper(func):
+        async def __logger_wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        return _wrapper
+        return __logger_wrapper()
 
     def __getattr__(self, item):
-        return self._attrAsyncWrapper(logger.__getattribute__(item))
+        return self._async_wrapper(logger.__getattribute__(item))
 
 
 config = Config().from_object(config)
