@@ -49,6 +49,7 @@ logger.patch(lambda record: record['extra'].update(req=request))
 
 callHandlers_func = sys.modules['logging'].Logger.callHandlers
 
+
 def _callHandlers_wrapper(original, record):
     if hasattr(original, "handlers"):
         if getattr(original, "handlers"):
@@ -57,7 +58,9 @@ def _callHandlers_wrapper(original, record):
     if callable(callHandlers_func):
         callHandlers_func(original, record)
 
+
 sys.modules['logging'].Logger.callHandlers = _callHandlers_wrapper
+
 
 def request_log():
     with logger.contextualize(extra={**request}):
