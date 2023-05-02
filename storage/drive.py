@@ -138,10 +138,10 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         self.config_dir = config_dir
 
         if not config_dir.exists() and create_not_exist:
-            self.save_storage()
+            self._save_storage_always()
         elif not config_dir.is_file() and create_not_exist:
             config_dir.unlink(missing_ok=True)
-            self.save_storage()
+            self._save_storage_always()
         elif not _pre_inited:
             try:
                 with config_dir.open('r+', encoding='UTF-8') as file:
@@ -175,6 +175,13 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         """
         if not self.config_dir.exists():
             return
+        self._save_storage_always()
+
+    def _save_storage_always(self):
+        """
+        自动保存函数 Always Safe (Use save_storage instead, should not be called manually)
+        :return: None
+        """
         with self.config_dir.open('w', encoding='UTF-8') as file:
             json.dump(self._config, file, default=serialize, ensure_ascii=False, indent=4)
 
