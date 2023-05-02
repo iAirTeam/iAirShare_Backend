@@ -25,7 +25,7 @@ class FileAPIImpl(ABC):
         return path.strip('/').split('/')
 
     @abstractmethod
-    def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
+    def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:  # pragma: no cover
         """
         向 Repo 上传文件
         :param create_parents: 在父目录不存在时, 是否自动创建
@@ -35,7 +35,8 @@ class FileAPIImpl(ABC):
         """
         pass
 
-    def upload_directory(self, path: Optional[str], name: str, create_parents=False) -> None:
+    @abstractmethod
+    def upload_directory(self, path: Optional[str], name: str, create_parents=False) -> None:  # pragma: no cover
         """
         创建一个文件夹
         :param path: 路径
@@ -43,9 +44,10 @@ class FileAPIImpl(ABC):
         :param create_parents: 当父目录不存在, 是否自动创建
         :return: None
         """
+        pass
 
     @abstractmethod
-    def list_dir(self, path: Optional[str]) -> Optional[list[str]]:
+    def list_dir(self, path: Optional[str]) -> Optional[list[str]]:  # pragma: no cover
         """
         获取 Repo 中 path 目录下的 文件(夹) 的列表
         :param path: 目录位置
@@ -53,7 +55,7 @@ class FileAPIImpl(ABC):
         """
         pass
 
-    def next_dir(self, path: Optional[str], d_next: int = None):
+    def next_dir(self, path: Optional[str], d_next: int = None):  # pragma: no cover
         """
         获取 Repo 中 path 目录下 的 一个文件(夹)
         :param path: 目录位置
@@ -63,7 +65,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def quires_file(self, path: str) -> Optional[FileStatic] | str:
+    def quires_file(self, path: str) -> Optional[FileStatic] | str:  # pragma: no cover
         """
         根据 路径 获取文件信息
         :param path: 文件路径
@@ -73,7 +75,7 @@ class FileAPIImpl(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_file(file_info: Optional[FileStatic] | str) -> IO:
+    def get_file(file_info: Optional[FileStatic] | str) -> IO:  # pragma: no cover
         """
         根据 文件ID 获取文件数据
         :param file_info:
@@ -82,7 +84,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def unlink_file(self, path: str) -> bool:
+    def unlink_file(self, path: str) -> bool:  # pragma: no cover
         """
         移除目标 path mapping 链接 (≈删除文件)
         :param path: 文件路径
@@ -91,7 +93,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def move_file(self, src_path: str, dest_path: str) -> bool:
+    def move_file(self, src_path: str, dest_path: str) -> bool:  # pragma: no cover
         """
         移动目标 old_path 指向的内容到 new_path (≈可以理解为移动文件(夹))
         :param dest_path: 目标位置
@@ -101,13 +103,13 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def verify_code(self, access_token) -> bool:
+    def verify_code(self, access_token) -> bool:  # pragma: no cover
         """是否可以访问存储库"""
         pass
 
     @property
     @abstractmethod
-    def repo_exist(self) -> bool:
+    def repo_exist(self) -> bool:  # pragma: no cover
         """存储库是否存在"""
         pass
 
@@ -115,14 +117,14 @@ class FileAPIImpl(ABC):
 # noinspection PyUnusedLocal
 class RepoStorage(ABC):
     @abstractmethod
-    def __init__(self, create_not_exist: bool):
+    def __init__(self, create_not_exist: bool):  # pragma: no cover
         """
         :param create_not_exist: 当不存在时创建
         """
         pass
 
     @abstractmethod
-    def _upload(self, file: IO) -> FileStatic:
+    def _upload(self, file: IO) -> FileStatic:  # pragma: no cover
         """
         通过 file 上传文件
         :param file: 文件数据 (IO)
@@ -132,7 +134,7 @@ class RepoStorage(ABC):
 
     @abstractmethod
     @match_class_typing
-    def _quires(self, file_id: FileId) -> Optional[BytesIO]:
+    def _quires(self, file_id: FileId) -> Optional[BytesIO]:  # pragma: no cover
         """
         通过 文件ID 获取文件数据
         :param file_id: 文件ID
@@ -141,7 +143,7 @@ class RepoStorage(ABC):
         pass
 
     @classmethod
-    def _get_file_id(cls, file_info: FileSpecialMeta) -> FileId:
+    def _get_file_id(cls, file_info: FileSpecialMeta) -> FileId:  # pragma: no cover
         """
         通过 文件信息 获取 文件ID
         :param file_info: 文件信息(如FileSpecialInfo)
@@ -153,7 +155,7 @@ class RepoStorage(ABC):
 # noinspection PyUnusedLocal
 class RepoMapping(ABC):
 
-    def __init__(self, repo_id: str, create_not_exist: bool):
+    def __init__(self, repo_id: str, create_not_exist: bool):  # pragma: no cover
         """
         :param create_not_exist: 当不存在时创建
         :param repo_id: 存储库Id
@@ -162,32 +164,32 @@ class RepoMapping(ABC):
 
     @property
     @abstractmethod
-    def repo_name(self) -> str:
+    def repo_name(self) -> str:  # pragma: no cover
         pass
 
     @property
     @abstractmethod
-    def config(self) -> RepoConfigStructure:
+    def config(self) -> RepoConfigStructure:  # pragma: no cover
         pass
 
     @property
-    def mapping(self) -> FileMapping:
+    def mapping(self) -> FileMapping:  # pragma: no cover
         return self.config['mapping']
 
     @abstractmethod
-    def locate_file(self, path: tuple[str] | list[str]) -> Optional[FileBase]:
+    def locate_file(self, path: tuple[str] | list[str]) -> Optional[FileBase]:  # pragma: no cover
         pass
 
     @abstractmethod
-    def locate_dir(self, path: tuple[str] | list[str]) -> Optional[FileMapping]:
+    def locate_dir(self, path: tuple[str] | list[str]) -> Optional[FileMapping]:  # pragma: no cover
         pass
 
     @abstractmethod
-    def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
+    def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):  # pragma: no cover
         pass
 
     @abstractmethod
-    def unset_file(self, path: tuple[str] | list[str]):
+    def unset_file(self, path: tuple[str] | list[str]):  # pragma: no cover
         pass
 
 

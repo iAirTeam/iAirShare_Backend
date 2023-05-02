@@ -1,18 +1,28 @@
 import pathlib
 
 from quart import Quart, Blueprint
+from quart.logging import default_handler as quart_default_handler
 from quart_cors import cors
 
 import config
 import storage.integrated
-from blueprints import *
-from .logging import logger
+import logging
+from ever_loguru import logger, LoguruLoggingHandler
 
 
 class Backend(Quart):
-    def __init__(self, config_instance: object = None, blueprints: list[Blueprint] | tuple[Blueprint] = None):
+    def __init__(self, config_instance: config = None, blueprints: list[Blueprint] | tuple[Blueprint] = None):
+        from blueprints import root_bp, file_bp
+
+        def logger_replacement():
+            self.logger.removeHandler(quart_default_handler)
+            self.logger.addHandler(LoguruLoggingHandler())
+
         super().__init__(__name__, instance_relative_config=True,
                          instance_path=str(pathlib.Path('instance').absolute()))
+
+        self.before_serving(logger_replacement)
+
         if config_instance:
             self.config.from_object(config_instance)
 
@@ -30,7 +40,12 @@ class Backend(Quart):
 
 
 def create_app():
-    app = Backend(config_instance=config)
+    if hasattr(config, "APP_APP") and config.APP_APP:
+        app = config.APP_APP
+    elif hasattr(storage.integrated, "app") and storage.integrated.shared.app:
+        app = storage.integrated.shared.app
+    else:
+        app = Backend(config_instance=config)
 
     cors(
         app,
