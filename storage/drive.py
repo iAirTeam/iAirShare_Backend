@@ -4,9 +4,10 @@ import json
 from .base import *
 from .structure import *
 
-from helpers.encrypt import hash_file
+from utils.encrypt import hash_file
 from utils.exceptions import *
-from utils.logger import logger
+from utils import serialize
+from utils.logging import logger
 
 repo_storage: dict["RepoMapping"] = {}
 
@@ -130,9 +131,6 @@ class RepoMappingDrive(DriveBase, RepoMapping):
                 "access_token": ""
             }
 
-        from helpers import serialize
-        self._serializer = serialize
-
         super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
 
         config_dir = self.base_dir / f"{repo_id + '_' if repo_id else ''}config.json"
@@ -150,7 +148,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
                     try:
                         self._config: RepoConfigStructure = json.load(file)
                     except ValueError:
-                        json.dump(self.config, file, default=self._serializer)
+                        json.dump(self.config, file, default=serialize)
             except FileNotFoundError:
                 pass
 
@@ -185,7 +183,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         :return: None
         """
         with self.config_dir.open('w', encoding='UTF-8') as file:
-            json.dump(self._config, file, default=self._serializer, ensure_ascii=False, indent=4)
+            json.dump(self._config, file, default=serialize, ensure_ascii=False, indent=4)
 
     def __del__(self):
         atexit.unregister(self._save_storage)
