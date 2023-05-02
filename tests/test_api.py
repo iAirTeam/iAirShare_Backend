@@ -24,7 +24,7 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
         for alpha in 'abcdefjhijklmnopqrstuvwxyz':
             file.update({f"file{'abcdefjhijklmnopqrstuvwxyz'.index(alpha)}": FileStorage(
                 stream=BytesIO(f"test_01{alpha}".encode('UTF-8')),
-                filename="test_01{alpha}",
+                filename=f"test_01{alpha}",
                 content_type="text/plain"
             )})
 
