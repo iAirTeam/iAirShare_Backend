@@ -33,9 +33,9 @@ class FileAPIPrivate(FileAPIAccess, RepoMappingDrive, RepoStorageDrive):
 
 class AdminFileAPI(FileAPIPrivate):
     def __init__(self, repo_id: str, token='', default_code='', create_not_exist=False):
-        super().__init__(repo_id=repo_id, access_token=default_code, create_not_exist=create_not_exist)
         self.admin_token = token
         self.access_token = default_code
+        super().__init__(repo_id=repo_id, access_token=default_code, create_not_exist=create_not_exist)
 
     def verify_code(self, access_token) -> bool:
         return integrated.verify_admin_code(self.admin_token) or super().verify_code(access_token)
