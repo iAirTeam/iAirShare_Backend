@@ -6,7 +6,7 @@ from quart_cors import cors
 
 import config
 import storage.integrated
-from utils.logger import logger, LoguruLoggingHandler
+from ever_loguru import logger, LoguruLoggingHandler
 
 
 class Backend(Quart):
