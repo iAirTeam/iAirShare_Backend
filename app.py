@@ -1,4 +1,4 @@
-from helpers.create_app import (
+from utils.create_app import (
     create_app,
 )
 import config
