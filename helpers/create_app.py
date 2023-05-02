@@ -6,6 +6,7 @@ from quart_cors import cors
 
 import config
 import storage.integrated
+import logging
 from ever_loguru import logger, LoguruLoggingHandler
 
 
