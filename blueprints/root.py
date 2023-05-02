@@ -1,6 +1,6 @@
 from quart import Blueprint, send_file
 
-from helpers import gen_json_response
+from utils import gen_json_response
 
 from config import BACKEND_Name, SERVER_Version, SERVER_VersionCode
 

@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from quart import Quart
-from utils.logger import logger
+from loguru import logger
 
 import storage.shared as shared
 
