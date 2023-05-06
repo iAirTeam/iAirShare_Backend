@@ -2,11 +2,9 @@ import ever_loguru
 from loguru import logger
 from quart import request
 
-ever_loguru.install_class()
-
 logger.patch(lambda record: record['extra'].update(req=request))
 
-ever_loguru.install()
+ever_loguru.install_handlers()
 
 
 def request_log():
