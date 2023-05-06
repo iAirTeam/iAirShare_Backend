@@ -25,6 +25,10 @@ class FileAPIImpl(ABC):
         return path.strip('/').split('/')
 
     @abstractmethod
+    def reload(self):
+        pass
+
+    @abstractmethod
     def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:  # pragma: no cover
         """
         向 Repo 上传文件
@@ -160,6 +164,9 @@ class RepoMapping(ABC):
         :param create_not_exist: 当不存在时创建
         :param repo_id: 存储库Id
         """
+        pass
+
+    def reload(self):
         pass
 
     @property

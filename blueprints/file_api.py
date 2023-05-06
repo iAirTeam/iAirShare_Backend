@@ -12,10 +12,13 @@ public_repo = FileAPIPublic()
 
 def file_iter(req_repo, count: int, path: str, d_next):
     logger.debug(f"[File Iter] Iterating (iter_id:{d_next}) at {path} in {req_repo.repo_name}")
+
     if count > 20:
         count = 20
     first, total, d_next = req_repo.next_dir(path, d_next=d_next)
+
     result = {"total": total, 'next': 0, 'files': [first]}
+
     logger.debug(f"[File Iter] Total: {total} Element {first}")
 
     for _ in range(count):
@@ -59,7 +62,7 @@ async def files_operation(repo='public'):
             case 'save':
                 req_repo.save_storage()
             case 'reload':
-                ...
+                req_repo.reload()
             case 'create':
                 if not req_repo.repo_exist:
                     token = values.get('token', '')

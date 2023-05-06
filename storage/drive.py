@@ -8,7 +8,7 @@ from helpers.encrypt import hash_file
 from utils.exceptions import *
 from utils.logger import logger
 
-repo_storage: dict["RepoMapping"] = {}
+repo_storage: dict[RepoId, RepoMapping] = {}
 
 
 class RepoMappingDrive(DriveBase, RepoMapping):
@@ -28,6 +28,16 @@ class RepoMappingDrive(DriveBase, RepoMapping):
             obj = super().__new__(cls)
             repo_storage.update({repo_id: obj})
             return obj
+
+    def reload(self):
+        cls = self.__class__
+
+        new_obj = super().__new__(cls, repo_id=self.repo_id, create_not_exist=False)
+        cls.__init__(new_obj, repo_id=self.repo_id, create_not_exist=False)
+
+        self._config = new_obj.config
+        repo_storage[self.repo_id]: RepoMappingDrive
+        setattr(repo_storage[self.repo_id], '_config', new_obj.config)
 
     def locate_file(
             self, path: tuple[str] | list[str],
@@ -81,7 +91,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
                 creat: FileBase,
                 _depth: int = 0,
                 _loc: FileMapping = None
-        )\
+        ) \
                 -> Optional[FileBase]:
             if not _loc:
                 _loc = self.mapping
