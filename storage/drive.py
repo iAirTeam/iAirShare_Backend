@@ -4,12 +4,11 @@ import json
 from .base import *
 from .structure import *
 
-from utils.encrypt import hash_file
+from helpers.encrypt import hash_file
 from utils.exceptions import *
-from utils import serialize
-from utils.logging import logger
+from utils.logger import logger
 
-repo_storage: dict["RepoMapping"] = {}
+repo_storage: dict[RepoId, RepoMapping] = {}
 
 
 class RepoMappingDrive(DriveBase, RepoMapping):
@@ -29,6 +28,16 @@ class RepoMappingDrive(DriveBase, RepoMapping):
             obj = super().__new__(cls)
             repo_storage.update({repo_id: obj})
             return obj
+
+    def reload(self):
+        cls = self.__class__
+
+        new_obj = super().__new__(cls, repo_id=self.repo_id, create_not_exist=False)
+        cls.__init__(new_obj, repo_id=self.repo_id, create_not_exist=False)
+
+        self._config = new_obj.config
+        repo_storage[self.repo_id]: RepoMappingDrive
+        setattr(repo_storage[self.repo_id], '_config', new_obj.config)
 
     def locate_file(
             self, path: tuple[str] | list[str],
@@ -82,7 +91,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
                 creat: FileBase,
                 _depth: int = 0,
                 _loc: FileMapping = None
-        )\
+        ) \
                 -> Optional[FileBase]:
             if not _loc:
                 _loc = self.mapping
@@ -131,29 +140,32 @@ class RepoMappingDrive(DriveBase, RepoMapping):
                 "access_token": ""
             }
 
+        from helpers import serialize
+        self._serializer = serialize
+
         super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
 
         config_dir = self.base_dir / f"{repo_id + '_' if repo_id else ''}config.json"
 
+        self.config_dir = config_dir
+
         if not config_dir.exists() and create_not_exist:
-            self.save_storage()
+            self._save_storage_always()
         elif not config_dir.is_file() and create_not_exist:
             config_dir.unlink(missing_ok=True)
-            self.save_storage()
+            self._save_storage_always()
         elif not _pre_inited:
             try:
                 with config_dir.open('r+', encoding='UTF-8') as file:
                     try:
                         self._config: RepoConfigStructure = json.load(file)
                     except ValueError:
-                        json.dump(self.config, file, default=serialize)
+                        json.dump(self.config, file, default=self._serializer)
             except FileNotFoundError:
                 pass
 
         if not _pre_inited and config_dir.exists() and create_not_exist:
             atexit.register(self._save_storage)
-
-        self.config_dir = config_dir
 
         map_set = set()
 
@@ -175,8 +187,15 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         """
         if not self.config_dir.exists():
             return
+        self._save_storage_always()
+
+    def _save_storage_always(self):
+        """
+        自动保存函数 Always Safe (Use save_storage instead, should not be called manually)
+        :return: None
+        """
         with self.config_dir.open('w', encoding='UTF-8') as file:
-            json.dump(self._config, file, default=serialize, ensure_ascii=False, indent=4)
+            json.dump(self._config, file, default=self._serializer, ensure_ascii=False, indent=4)
 
     def __del__(self):
         atexit.unregister(self._save_storage)

@@ -19,11 +19,14 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
         根目录上传
         """
 
-        file = {"file": FileStorage(
-            stream=BytesIO(f"test_01".encode('UTF-8')),
-            filename="test_01",
-            content_type="text/plain"
-        )}
+        file = {}
+
+        for alpha in 'abcdefjhijklmnopqrstuvwxyz':
+            file.update({f"file{'abcdefjhijklmnopqrstuvwxyz'.index(alpha)}": FileStorage(
+                stream=BytesIO(f"test_01{alpha}".encode('UTF-8')),
+                filename=f"test_01{alpha}",
+                content_type="text/plain"
+            )})
 
         resp = await self.client.put('/api/file/tests/', files=file, headers={
             "Content-Type": "multipart/form-data"
@@ -38,20 +41,28 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
         根目录获取(单个文件)
         """
 
-        resp = await self.client.get('/api/file/tests/test_01')
+        resp = await self.client.get('/api/file/tests/test_01a')
 
         if resp.content_type == 'application/json':
             self.assertTrue(False, await resp.json)
             return None
 
-        self.assertEqual(await resp.data, b'test_01')
+        self.assertEqual(await resp.data, b'test_01a')
+
+        resp = await self.client.get('/api/file/tests/test_01b')
+
+        if resp.content_type == 'application/json':
+            self.assertTrue(False, await resp.json)
+            return None
+
+        self.assertEqual(await resp.data, b'test_01b')
 
     async def test_01_3_dir1(self):
         """
         列出根目录(tests/)
         """
 
-        response = await self.client.get('/api/file/tests/')
+        response = await self.client.get('/api/file/tests/?count=20')
 
         d_next = (await response.json)['data']['next']
 
@@ -59,7 +70,7 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
             self.assertNotEqual(d_next, -114514, 'Something went wrong!')
 
         while d_next > 0:
-            response = await self.client.get(f'/api/file/tests/?next={d_next}')
+            response = await self.client.get(f'/api/file/tests/?count=20&next={d_next}')
 
             d_next = (await response.json)['data']['next']
 
@@ -101,7 +112,7 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
         列出文件夹(tests/test_02/)内容
         """
 
-        response = await self.client.get('/api/file/tests/test_02/')
+        response = await self.client.get('/api/file/tests/test_02/?count=20')
 
         lst: FileMapping = [*(await response.json)['data']['files']]
 
@@ -113,7 +124,7 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
         while d_next > 0:
             lst.append(*(await response.json)['data']['files'])
 
-            response = await self.client.get(f'/api/file/tests/test_02/?next={d_next}')
+            response = await self.client.get(f'/api/file/tests/test_02/?count=20&next={d_next}')
 
             d_next = (await response.json)['data']['next']
 

@@ -2,8 +2,8 @@ from http import HTTPStatus
 
 from quart import Blueprint, request, send_file
 
-from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType
-from utils import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
+from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType, FileAPIImpl
+from helpers import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
 from config import logger
 
 bp = Blueprint("file", __name__, url_prefix='/api/file')
@@ -12,20 +12,24 @@ public_repo = FileAPIPublic()
 
 def file_iter(req_repo, count: int, path: str, d_next):
     logger.debug(f"[File Iter] Iterating (iter_id:{d_next}) at {path} in {req_repo.repo_name}")
+
     if count > 20:
         count = 20
     first, total, d_next = req_repo.next_dir(path, d_next=d_next)
+
     result = {"total": total, 'next': 0, 'files': [first]}
+
     logger.debug(f"[File Iter] Total: {total} Element {first}")
 
     for _ in range(count):
         if d_next == 0:
             break
 
-        val, total, d_next = req_repo.next_repo_dir(None, d_next=d_next)
+        val, total, d_next = req_repo.next_dir(None, d_next=d_next)
 
         if val is None:
             break
+
         result['total'] = total
         result['files'].append(val)
 
@@ -58,7 +62,7 @@ async def files_operation(repo='public'):
             case 'save':
                 req_repo.save_storage()
             case 'reload':
-                ...
+                req_repo.reload()
             case 'create':
                 if not req_repo.repo_exist:
                     token = values.get('token', '')
@@ -102,13 +106,13 @@ async def files_operation(repo='public'):
                 return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
                               msg="Unable to put a file to root")
 
-            files = (await request.files).getlist('file')
+            filelist = (await request.files)
+            for file in filelist.values():
 
-            if not files:
-                return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
-                              msg="No File Selected")
+                if not file:
+                    return kw_gen(_status=HTTPStatus.BAD_REQUEST, status=400,
+                                  msg="No File Selected")
 
-            for file in files:
                 req_repo.upload_file("/", file)
 
             return kw_gen(_status=HTTPStatus.CREATED)
@@ -200,29 +204,32 @@ async def file_operation(repo='public', target=None):
 
                 return kw_gen(status=200, data=result)
         case 'PUT':
-            files = (await request.files).getlist('file')
+            filelist = (await request.files)
 
-            if not storage_path.endswith('/'):
-                return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400,
-                              msg="Unable to put File(s) into a FILE")
+            if not filelist:
+                if storage_path.endswith('/'):
+                    path_list = storage_path.strip('/').split('/')[:-1]
+                    return kw_gen(
+                        _status=HTTPStatus.CREATED,
+                        place=req_repo.upload_directory(
+                            '/'.join(path_list),
+                            target[:-1]
+                        )
+                    )
 
-            if files:
-                if len(files) == 0:
-                    return kw_gen(_status=HTTPStatus.ACCEPTED, code=202,
-                                  msg="Notice: No File Selected!")
-                for file in files:
-                    req_repo.upload_file(storage_path, file)
+                return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400, msg="No File Selected.")
 
-                return kw_gen(_status=HTTPStatus.CREATED)
+            for file in filelist.values():
+                if not storage_path.endswith('/'):
+                    return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400,
+                                  msg="Unable to put File(s) into a FILE")
 
-            path_list = storage_path.strip('/').split('/')[:-1]
-            return kw_gen(
-                _status=HTTPStatus.CREATED,
-                place=req_repo.upload_directory(
-                    '/'.join(path_list),
-                    target[:-1]
-                )
-            )
+                if not file:
+                    return kw_gen(_status=HTTPStatus.BAD_REQUEST, code=400, msg="Bad file")
+
+                req_repo.upload_file(storage_path, file)
+
+            return kw_gen(_status=HTTPStatus.CREATED)
         case 'DELETE':
             if not storage_path.removesuffix('/'):
                 return kw_gen(_status=HTTPStatus.GONE,
