@@ -1,6 +1,6 @@
 import pathlib
 
-from ever_loguru import logger, LoguruLoggingHandler
+from utils.logger import logger, LoguruLoggingHandler
 from quart import Quart, Blueprint
 from quart.logging import default_handler as quart_default_handler
 from quart_cors import cors

@@ -1,4 +1,5 @@
 import ever_loguru
+from ever_loguru import *
 from loguru import logger
 from quart import request
 
