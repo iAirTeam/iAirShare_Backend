@@ -19,14 +19,10 @@ from quart.datastructures import FileStorage
 from .structure import *
 
 
-class FileAPIImpl(ABC):
+class FileAPIAbstract(ABC):
     @staticmethod
     def _path_split(path: str):
         return path.strip('/').split('/')
-
-    @abstractmethod
-    def reload(self):
-        pass
 
     @abstractmethod
     def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:  # pragma: no cover
@@ -166,9 +162,6 @@ class RepoMapping(ABC):
         """
         pass
 
-    def reload(self):
-        pass
-
     @property
     @abstractmethod
     def repo_name(self) -> str:  # pragma: no cover
@@ -200,7 +193,14 @@ class RepoMapping(ABC):
         pass
 
 
-class DriveBase:
+class Reloadable(ABC):
+
+    @abstractmethod
+    def reload(self):
+        ...
+
+
+class DriveBase(Reloadable, ABC):
     def __init__(self, repo_id: str, create_not_exist: bool):
         base_dir = pathlib.Path('instance')
         file_dir = base_dir / 'files'
@@ -216,7 +216,7 @@ class DriveBase:
         self._repo = repo_id
 
 
-class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
+class FileAPIAccess(FileAPIAbstract, RepoStorage, RepoMapping, ABC):
     def __init__(self, repo_id: str, create_not_exist: bool, access_token: str = None):
         super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
         self.access_token = access_token

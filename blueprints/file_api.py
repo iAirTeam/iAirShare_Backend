@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from quart import Blueprint, request, send_file
 
-from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType, FileAPIImpl
+from storage import FileAPIPublic, FileAPIPrivate, AdminFileAPI, FileType, FileAPIAbstract
 from helpers import gen_json_response_kw as kw_gen, gen_json_response as dict_gen
 from config import logger
 

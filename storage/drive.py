@@ -20,7 +20,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         if repo_id in repo_storage:
             old_obj = repo_storage[repo_id]
             new_obj = super().__new__(cls)
-            new_obj._config = old_obj._config
+            setattr(new_obj, "_config", getattr(old_obj, "_config"))
             return new_obj
         elif not repo_id:
             return super().__new__(cls)
@@ -32,7 +32,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
     def reload(self):
         cls = self.__class__
 
-        new_obj = super().__new__(cls, repo_id=self.repo_id, create_not_exist=False)
+        new_obj = cls.__new__(cls, repo_id=self.repo_id, create_not_exist=False)
         cls.__init__(new_obj, repo_id=self.repo_id, create_not_exist=False)
 
         self._config = new_obj.config
@@ -170,7 +170,7 @@ class RepoMappingDrive(DriveBase, RepoMapping):
         map_set = set()
 
         for item in self._config['mapping']:
-            if not isinstance(item, FileBase):
+            if isinstance(item, dict):
                 item = FileBase(**item)
             map_set |= {item}
 
