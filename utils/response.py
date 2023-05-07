@@ -1,9 +1,9 @@
 import datetime
-from copy import deepcopy
-from quart import Response, Quart
-from http import HTTPStatus
 import json
-from storage.integrated import shared
+from copy import deepcopy
+from http import HTTPStatus
+
+from quart import Response
 
 default_response = {
     "status": 200,
@@ -44,7 +44,7 @@ def gen_json_response_kw(_status=HTTPStatus.OK, _cache_timeout: int = None, **kw
                     mimetype='application/json', status=_status)
     if _cache_timeout:
         resp.cache_control.max_age = _cache_timeout
-        resp.expires = datetime.utcnow() + datetime.timedelta(seconds=_cache_timeout)
+        resp.expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=_cache_timeout)
     return resp
 
 
@@ -60,5 +60,5 @@ def gen_json_response(dictionary: dict, _status=HTTPStatus.OK, _cache_timeout: i
                     mimetype='application/json', status=_status)
     if _cache_timeout:
         resp.cache_control.max_age = _cache_timeout
-        resp.expires = datetime.utcnow() + datetime.timedelta(seconds=_cache_timeout)
+        resp.expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=_cache_timeout)
     return resp
