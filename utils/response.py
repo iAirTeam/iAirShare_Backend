@@ -25,8 +25,7 @@ def gen_response_str(**kwargs) -> str:
     :param kwargs:
     :return: json 响应字符串
     """
-    _dict = deepcopy(default_response)
-    _dict.update(kwargs)
+    _dict = get_formatted_dict(kwargs)
     return json.dumps(_dict, ensure_ascii=False, default=_serialize)
 
 
@@ -62,3 +61,14 @@ def gen_json_response(dictionary: dict, _status=HTTPStatus.OK, _cache_timeout: i
         resp.cache_control.max_age = _cache_timeout
         resp.expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=_cache_timeout)
     return resp
+
+
+def get_formatted_dict(dictionary: dict) -> dict:
+    _dict = deepcopy(default_response)
+    _dict.update(dictionary)
+
+    return _dict
+
+
+def gen_formatted_dict(**kwargs) -> dict:
+    return get_formatted_dict(kwargs)
