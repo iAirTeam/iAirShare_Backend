@@ -1,8 +1,8 @@
 # iAirShare Backend
 
-<del>全员摸鱼中...</del>?
+~~全员摸鱼中...~~?
 
-## Installtion
+## Installation
     git clone https://github.com/iAirTeam/iAirShare_Backend.git
     pip install -r requirements.txt
 
@@ -10,4 +10,4 @@
 ### Quart Development
     python -m quart app
 ### HyperCorn
-    python -m HyCorn
+    python -m run_hypercorn
