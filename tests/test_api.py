@@ -14,6 +14,7 @@ class FileAPITest(unittest.IsolatedAsyncioTestCase):
         self.app = app
         self.client = self.app.test_client()
 
+    # noinspection SpellCheckingInspection
     async def test_01_1_upload(self):
         """
         根目录上传

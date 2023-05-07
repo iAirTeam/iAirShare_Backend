@@ -19,17 +19,13 @@ from quart.datastructures import FileStorage
 from .structure import *
 
 
-class FileAPIImpl(ABC):
+class FileAPIAbstract(ABC):  # pragma: no cover
     @staticmethod
     def _path_split(path: str):
         return path.strip('/').split('/')
 
     @abstractmethod
-    def reload(self):
-        pass
-
-    @abstractmethod
-    def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:  # pragma: no cover
+    def upload_file(self, path: Optional[str], file: FileStorage, create_parents=False) -> FileId:
         """
         向 Repo 上传文件
         :param create_parents: 在父目录不存在时, 是否自动创建
@@ -40,7 +36,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def upload_directory(self, path: Optional[str], name: str, create_parents=False) -> None:  # pragma: no cover
+    def upload_directory(self, path: Optional[str], name: str, create_parents=False) -> None:
         """
         创建一个文件夹
         :param path: 路径
@@ -51,7 +47,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def list_dir(self, path: Optional[str]) -> Optional[list[str]]:  # pragma: no cover
+    def list_dir(self, path: Optional[str]) -> Optional[list[str]]:
         """
         获取 Repo 中 path 目录下的 文件(夹) 的列表
         :param path: 目录位置
@@ -59,7 +55,7 @@ class FileAPIImpl(ABC):
         """
         pass
 
-    def next_dir(self, path: Optional[str], d_next: int = None):  # pragma: no cover
+    def next_dir(self, path: Optional[str], d_next: int = None) -> tuple:
         """
         获取 Repo 中 path 目录下 的 一个文件(夹)
         :param path: 目录位置
@@ -69,17 +65,17 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def quires_file(self, path: str) -> Optional[FileStatic] | str:  # pragma: no cover
+    def quires_file(self, path: str) -> Optional[FileBase]:
         """
         根据 路径 获取文件信息
         :param path: 文件路径
-        :return: FileID(文件ID) (不存在时为空)
+        :return: FileBase (不存在时为空)
         """
         pass
 
     @staticmethod
     @abstractmethod
-    def get_file(file_info: Optional[FileStatic] | str) -> IO:  # pragma: no cover
+    def get_file(file_info: Optional[FileStatic] | str) -> IO:
         """
         根据 文件ID 获取文件数据
         :param file_info:
@@ -88,7 +84,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def unlink_file(self, path: str) -> bool:  # pragma: no cover
+    def unlink_file(self, path: str) -> bool:
         """
         移除目标 path mapping 链接 (≈删除文件)
         :param path: 文件路径
@@ -97,7 +93,7 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def move_file(self, src_path: str, dest_path: str) -> bool:  # pragma: no cover
+    def move_file(self, src_path: str, dest_path: str) -> bool:
         """
         移动目标 old_path 指向的内容到 new_path (≈可以理解为移动文件(夹))
         :param dest_path: 目标位置
@@ -107,13 +103,17 @@ class FileAPIImpl(ABC):
         pass
 
     @abstractmethod
-    def verify_code(self, access_token) -> bool:  # pragma: no cover
-        """是否可以访问存储库"""
+    def verify_code(self, access_token) -> bool:
+        """
+        验证存储库token
+        :param access_token: 输入的 Token
+        :return: 验证结果
+        """
         pass
 
     @property
     @abstractmethod
-    def repo_exist(self) -> bool:  # pragma: no cover
+    def repo_exist(self) -> bool:
         """存储库是否存在"""
         pass
 
@@ -157,50 +157,54 @@ class RepoStorage(ABC):
 
 
 # noinspection PyUnusedLocal
-class RepoMapping(ABC):
+class RepoMapping(ABC):  # pragma: no cover
 
-    def __init__(self, repo_id: str, create_not_exist: bool):  # pragma: no cover
+    def __init__(self, repo_id: str, create_not_exist: bool):
         """
         :param create_not_exist: 当不存在时创建
         :param repo_id: 存储库Id
         """
         pass
 
-    def reload(self):
+    @property
+    @abstractmethod
+    def repo_name(self) -> str:
         pass
 
     @property
     @abstractmethod
-    def repo_name(self) -> str:  # pragma: no cover
+    def config(self) -> RepoConfigStructure:
         pass
 
     @property
-    @abstractmethod
-    def config(self) -> RepoConfigStructure:  # pragma: no cover
-        pass
-
-    @property
-    def mapping(self) -> FileMapping:  # pragma: no cover
+    def mapping(self) -> FileMapping:
         return self.config['mapping']
 
     @abstractmethod
-    def locate_file(self, path: tuple[str] | list[str]) -> Optional[FileBase]:  # pragma: no cover
+    def locate_file(self, path: tuple[str] | list[str]) -> Optional[FileBase]:
         pass
 
     @abstractmethod
-    def locate_dir(self, path: tuple[str] | list[str]) -> Optional[FileMapping]:  # pragma: no cover
+    def locate_dir(self, path: tuple[str] | list[str]) -> Optional[FileMapping]:
         pass
 
     @abstractmethod
-    def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):  # pragma: no cover
+    def set_file(self, path: tuple[str] | list[str], file: FileBase, create_parents=False):
         pass
 
     @abstractmethod
-    def unset_file(self, path: tuple[str] | list[str]):  # pragma: no cover
+    def unset_file(self, path: tuple[str] | list[str]):
         pass
 
 
-class DriveBase:
+class Reloadable(ABC):
+
+    @abstractmethod
+    def reload(self):
+        ...
+
+
+class DriveBase(Reloadable, ABC):
     def __init__(self, repo_id: str, create_not_exist: bool):
         base_dir = pathlib.Path('instance')
         file_dir = base_dir / 'files'
@@ -216,7 +220,7 @@ class DriveBase:
         self._repo = repo_id
 
 
-class FileAPIAccess(FileAPIImpl, RepoStorage, RepoMapping, ABC):
+class FileAPIAccess(FileAPIAbstract, RepoStorage, RepoMapping, ABC):
     def __init__(self, repo_id: str, create_not_exist: bool, access_token: str = None):
         super().__init__(repo_id=repo_id, create_not_exist=create_not_exist)
         self.access_token = access_token

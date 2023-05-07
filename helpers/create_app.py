@@ -5,6 +5,8 @@ from quart import Quart, Blueprint
 from quart.logging import default_handler as quart_default_handler
 from quart_cors import cors
 
+from blueprints import ws_file_api
+
 import config
 import storage.integrated
 
@@ -28,7 +30,7 @@ class Backend(Quart):
         self.register_blueprint(root_bp)
         self.register_blueprint(file_bp)
 
-        if blueprints:  # pragma: no cover
+        if blueprints:
             for blueprint in blueprints:
                 self.register_blueprint(blueprint)
 
@@ -44,7 +46,7 @@ def create_app():
     elif hasattr(storage.integrated, "app") and storage.integrated.shared.app:
         app = storage.integrated.shared.app
     else:
-        app = Backend(config_instance=config)
+        app = Backend(config_instance=config, blueprints=[ws_file_api])
 
     cors(
         app,

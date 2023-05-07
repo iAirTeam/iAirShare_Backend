@@ -130,15 +130,15 @@ class FileStaticProperty(TypedDict, total=False):
     prop_ver: int
 
 
-FileMapping = set[FileBase] | list[FileBase]
-RawFileMapping = set["FileBaseDict"] | list["FileBaseDict"]
-
-
 class FileBaseDict(TypedDict):
     file_name: str
     file_type: str
     file_property: dict
-    pointer: RawFileMapping
+    pointer: "RawFileMapping"
+
+
+FileMapping = set[FileBase] | list[FileBase]
+RawFileMapping = set[FileBaseDict] | list[FileBaseDict]
 
 
 @match_class_typing
@@ -146,7 +146,7 @@ class RepoConfigStructureRaw(TypedDict):
     repo_name: str
     permission_nodes: dict
     access_token: str
-    mapping: RawFileMapping
+    mapping: "RawFileMapping"
 
 
 @match_class_typing
@@ -154,4 +154,4 @@ class RepoConfigStructure(TypedDict):
     repo_name: str
     permission_nodes: dict[str, bool | Type["permission_nodes"]]
     access_token: str
-    mapping: FileMapping
+    mapping: "FileMapping"

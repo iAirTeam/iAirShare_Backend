@@ -1,5 +1,6 @@
 from utils.response import *
 
+
 def serialize(obj):
     if isinstance(obj, set):
         return frozenset(obj)
